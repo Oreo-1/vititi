@@ -24,12 +24,6 @@
     <text text-anchor="middle" dominant-baseline="central" font-size={r} fill="white">{(t.name || '?')[0]}</text>
   {/if}
   <circle {r} fill="none" stroke={selected ? '#0d6efd' : 'rgba(0,0,0,0.6)'} stroke-width={(selected ? 3 : 1.5) / zoom} />
-  {#if t.hidden}
-    <text x={-r} y={-r} font-size={fs * 1.4} title="Hidden from players">👻</text>
-  {/if}
-  {#if t.dm_only}
-    <text x={r} y={-r} text-anchor="end" font-size={fs * 1.4}>🔒</text>
-  {/if}
   {#if t.name}
     <text y={r + fs * 1.2} text-anchor="middle" font-size={fs} fill="white" stroke="black" stroke-width={3 / zoom} paint-order="stroke">{t.name}</text>
   {/if}
