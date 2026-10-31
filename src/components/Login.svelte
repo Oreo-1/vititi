@@ -39,7 +39,7 @@
     </div>
     <div class="mb-3">
       <label class="form-label" for="pw">Password</label>
-      <input id="pw" type="password" class="form-control" bind:value={password} minlength="8" autocomplete="current-password" required />
+      <input id="pw" type="password" class="form-control" bind:value={password} autocomplete="current-password" required />
     </div>
     {#if error}<div class="alert alert-danger">{error}</div>{/if}
     <button class="btn btn-primary w-100" disabled={busy}>{mode === 'login' ? 'Login' : 'Create player account'}</button>
