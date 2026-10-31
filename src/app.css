@@ -1,0 +1,10 @@
+/* Minimal functional layout only — style as you like. */
+html, body, #app { height: 100%; margin: 0; }
+.vtt-root { display: flex; flex-direction: column; height: 100vh; }
+.vtt-main { flex: 1; display: flex; min-height: 0; }
+.vtt-table { flex: 1; position: relative; overflow: hidden; background: #222; touch-action: none; user-select: none; }
+.vtt-table svg { display: block; width: 100%; height: 100%; }
+.vtt-sidebar { width: 320px; overflow-y: auto; border-left: 1px solid #ccc; }
+.token-hidden { opacity: 0.45; }
+.drop-zone { border: 2px dashed #999; padding: 1rem; text-align: center; }
+.drop-zone.over { border-color: #0d6efd; }

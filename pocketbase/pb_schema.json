@@ -1,0 +1,740 @@
+[
+  {
+    "id": "pbc_vtt_users",
+    "name": "vititi_users",
+    "type": "auth",
+    "system": false,
+    "listRule": "@request.auth.id != \"\"",
+    "viewRule": "@request.auth.id != \"\"",
+    "createRule": "@request.body.role = \"player\"",
+    "updateRule": "id = @request.auth.id && @request.body.role:isset = false",
+    "deleteRule": null,
+    "fields": [
+      {
+        "id": "text3208210256",
+        "name": "id",
+        "type": "text",
+        "system": true,
+        "hidden": false,
+        "presentable": false,
+        "required": true,
+        "primaryKey": true,
+        "min": 15,
+        "max": 15,
+        "pattern": "^[a-z0-9]+$",
+        "autogeneratePattern": "[a-z0-9]{15}"
+      },
+      {
+        "id": "password_password",
+        "name": "password",
+        "type": "password",
+        "system": true,
+        "hidden": true,
+        "presentable": false,
+        "required": true,
+        "min": 8,
+        "max": 0,
+        "pattern": "",
+        "cost": 0
+      },
+      {
+        "id": "text_tokenKey",
+        "name": "tokenKey",
+        "type": "text",
+        "system": true,
+        "hidden": true,
+        "presentable": false,
+        "required": true,
+        "min": 30,
+        "max": 60,
+        "pattern": "",
+        "autogeneratePattern": "[a-zA-Z0-9]{50}",
+        "primaryKey": false
+      },
+      {
+        "id": "email_email",
+        "name": "email",
+        "type": "email",
+        "system": true,
+        "hidden": false,
+        "presentable": false,
+        "required": false,
+        "exceptDomains": null,
+        "onlyDomains": null
+      },
+      {
+        "id": "bool_emailVisibility",
+        "name": "emailVisibility",
+        "type": "bool",
+        "system": true,
+        "hidden": false,
+        "presentable": false,
+        "required": false
+      },
+      {
+        "id": "bool_verified",
+        "name": "verified",
+        "type": "bool",
+        "system": true,
+        "hidden": false,
+        "presentable": false,
+        "required": false
+      },
+      {
+        "id": "text_name",
+        "name": "name",
+        "type": "text",
+        "system": false,
+        "hidden": false,
+        "presentable": true,
+        "required": true,
+        "min": 2,
+        "max": 50,
+        "pattern": "",
+        "autogeneratePattern": "",
+        "primaryKey": false
+      },
+      {
+        "id": "select_role",
+        "name": "role",
+        "type": "select",
+        "system": false,
+        "hidden": false,
+        "presentable": false,
+        "required": false,
+        "maxSelect": 1,
+        "values": [
+          "dm",
+          "player"
+        ]
+      },
+      {
+        "id": "autodate_created",
+        "name": "created",
+        "type": "autodate",
+        "system": false,
+        "hidden": false,
+        "presentable": false,
+        "required": false,
+        "onCreate": true,
+        "onUpdate": false
+      },
+      {
+        "id": "autodate_updated",
+        "name": "updated",
+        "type": "autodate",
+        "system": false,
+        "hidden": false,
+        "presentable": false,
+        "required": false,
+        "onCreate": true,
+        "onUpdate": true
+      }
+    ],
+    "indexes": [
+      "CREATE UNIQUE INDEX `idx_tokenKey_pbc_vtt_users` ON `vititi_users` (`tokenKey`)",
+      "CREATE UNIQUE INDEX `idx_email_pbc_vtt_users` ON `vititi_users` (`email`) WHERE `email` != ''",
+      "CREATE UNIQUE INDEX `idx_name_pbc_vtt_users` ON `vititi_users` (`name`)"
+    ],
+    "authRule": "",
+    "manageRule": null,
+    "passwordAuth": {
+      "enabled": true,
+      "identityFields": [
+        "name"
+      ]
+    },
+    "authAlert": {
+      "enabled": false
+    },
+    "oauth2": {
+      "enabled": false
+    },
+    "mfa": {
+      "enabled": false
+    },
+    "otp": {
+      "enabled": false
+    },
+    "authToken": {
+      "duration": 604800
+    },
+    "passwordResetToken": {
+      "duration": 1800
+    },
+    "emailChangeToken": {
+      "duration": 1800
+    },
+    "verificationToken": {
+      "duration": 259200
+    },
+    "fileToken": {
+      "duration": 180
+    }
+  },
+  {
+    "id": "pbc_vtt_maps",
+    "name": "maps",
+    "type": "base",
+    "system": false,
+    "listRule": "@request.auth.id != \"\"",
+    "viewRule": "@request.auth.id != \"\"",
+    "createRule": "@request.auth.role = \"dm\"",
+    "updateRule": "@request.auth.role = \"dm\"",
+    "deleteRule": "@request.auth.role = \"dm\"",
+    "fields": [
+      {
+        "id": "text3208210256",
+        "name": "id",
+        "type": "text",
+        "system": true,
+        "hidden": false,
+        "presentable": false,
+        "required": true,
+        "primaryKey": true,
+        "min": 15,
+        "max": 15,
+        "pattern": "^[a-z0-9]+$",
+        "autogeneratePattern": "[a-z0-9]{15}"
+      },
+      {
+        "id": "text_name",
+        "name": "name",
+        "type": "text",
+        "system": false,
+        "hidden": false,
+        "presentable": false,
+        "required": true,
+        "min": 0,
+        "max": 200,
+        "pattern": "",
+        "autogeneratePattern": "",
+        "primaryKey": false
+      },
+      {
+        "id": "file_image",
+        "name": "image",
+        "type": "file",
+        "system": false,
+        "hidden": false,
+        "presentable": false,
+        "required": false,
+        "maxSelect": 1,
+        "maxSize": 52428800,
+        "mimeTypes": [
+          "image/jpeg",
+          "image/png",
+          "image/webp",
+          "image/gif",
+          "image/avif",
+          "image/svg+xml"
+        ],
+        "thumbs": [
+          "100x100"
+        ],
+        "protected": false
+      },
+      {
+        "id": "number_width",
+        "name": "width",
+        "type": "number",
+        "system": false,
+        "hidden": false,
+        "presentable": false,
+        "required": false,
+        "min": null,
+        "max": null,
+        "onlyInt": false
+      },
+      {
+        "id": "number_height",
+        "name": "height",
+        "type": "number",
+        "system": false,
+        "hidden": false,
+        "presentable": false,
+        "required": false,
+        "min": null,
+        "max": null,
+        "onlyInt": false
+      },
+      {
+        "id": "select_grid_type",
+        "name": "grid_type",
+        "type": "select",
+        "system": false,
+        "hidden": false,
+        "presentable": false,
+        "required": false,
+        "maxSelect": 1,
+        "values": [
+          "square",
+          "hex"
+        ]
+      },
+      {
+        "id": "number_grid_size",
+        "name": "grid_size",
+        "type": "number",
+        "system": false,
+        "hidden": false,
+        "presentable": false,
+        "required": false,
+        "min": null,
+        "max": null,
+        "onlyInt": false
+      },
+      {
+        "id": "number_grid_offset_x",
+        "name": "grid_offset_x",
+        "type": "number",
+        "system": false,
+        "hidden": false,
+        "presentable": false,
+        "required": false,
+        "min": null,
+        "max": null,
+        "onlyInt": false
+      },
+      {
+        "id": "number_grid_offset_y",
+        "name": "grid_offset_y",
+        "type": "number",
+        "system": false,
+        "hidden": false,
+        "presentable": false,
+        "required": false,
+        "min": null,
+        "max": null,
+        "onlyInt": false
+      },
+      {
+        "id": "bool_grid_visible",
+        "name": "grid_visible",
+        "type": "bool",
+        "system": false,
+        "hidden": false,
+        "presentable": false,
+        "required": false
+      },
+      {
+        "id": "json_fog",
+        "name": "fog",
+        "type": "json",
+        "system": false,
+        "hidden": false,
+        "presentable": false,
+        "required": false,
+        "maxSize": 2000000
+      },
+      {
+        "id": "autodate_created",
+        "name": "created",
+        "type": "autodate",
+        "system": false,
+        "hidden": false,
+        "presentable": false,
+        "required": false,
+        "onCreate": true,
+        "onUpdate": false
+      },
+      {
+        "id": "autodate_updated",
+        "name": "updated",
+        "type": "autodate",
+        "system": false,
+        "hidden": false,
+        "presentable": false,
+        "required": false,
+        "onCreate": true,
+        "onUpdate": true
+      }
+    ],
+    "indexes": []
+  },
+  {
+    "id": "pbc_vtt_tokens",
+    "name": "tokens",
+    "type": "base",
+    "system": false,
+    "listRule": "@request.auth.id != \"\"",
+    "viewRule": "@request.auth.id != \"\"",
+    "createRule": "@request.auth.role = \"dm\"",
+    "updateRule": "@request.auth.role = \"dm\" || (@request.auth.id != \"\" && dm_only = false && hidden = false && @request.body.map:isset = false && @request.body.name:isset = false && @request.body.image:isset = false && @request.body.size:isset = false && @request.body.hidden:isset = false && @request.body.dm_only:isset = false)",
+    "deleteRule": "@request.auth.role = \"dm\"",
+    "fields": [
+      {
+        "id": "text3208210256",
+        "name": "id",
+        "type": "text",
+        "system": true,
+        "hidden": false,
+        "presentable": false,
+        "required": true,
+        "primaryKey": true,
+        "min": 15,
+        "max": 15,
+        "pattern": "^[a-z0-9]+$",
+        "autogeneratePattern": "[a-z0-9]{15}"
+      },
+      {
+        "id": "relation_map",
+        "name": "map",
+        "type": "relation",
+        "system": false,
+        "hidden": false,
+        "presentable": false,
+        "required": true,
+        "collectionId": "pbc_vtt_maps",
+        "cascadeDelete": true,
+        "minSelect": 0,
+        "maxSelect": 1
+      },
+      {
+        "id": "text_name",
+        "name": "name",
+        "type": "text",
+        "system": false,
+        "hidden": false,
+        "presentable": false,
+        "required": false,
+        "min": 0,
+        "max": 200,
+        "pattern": "",
+        "autogeneratePattern": "",
+        "primaryKey": false
+      },
+      {
+        "id": "file_image",
+        "name": "image",
+        "type": "file",
+        "system": false,
+        "hidden": false,
+        "presentable": false,
+        "required": false,
+        "maxSelect": 1,
+        "maxSize": 10485760,
+        "mimeTypes": [
+          "image/jpeg",
+          "image/png",
+          "image/webp",
+          "image/gif",
+          "image/avif",
+          "image/svg+xml"
+        ],
+        "thumbs": [
+          "100x100"
+        ],
+        "protected": false
+      },
+      {
+        "id": "number_x",
+        "name": "x",
+        "type": "number",
+        "system": false,
+        "hidden": false,
+        "presentable": false,
+        "required": false,
+        "min": null,
+        "max": null,
+        "onlyInt": false
+      },
+      {
+        "id": "number_y",
+        "name": "y",
+        "type": "number",
+        "system": false,
+        "hidden": false,
+        "presentable": false,
+        "required": false,
+        "min": null,
+        "max": null,
+        "onlyInt": false
+      },
+      {
+        "id": "number_size",
+        "name": "size",
+        "type": "number",
+        "system": false,
+        "hidden": false,
+        "presentable": false,
+        "required": false,
+        "min": null,
+        "max": null,
+        "onlyInt": false
+      },
+      {
+        "id": "bool_hidden",
+        "name": "hidden",
+        "type": "bool",
+        "system": false,
+        "hidden": false,
+        "presentable": false,
+        "required": false
+      },
+      {
+        "id": "bool_dm_only",
+        "name": "dm_only",
+        "type": "bool",
+        "system": false,
+        "hidden": false,
+        "presentable": false,
+        "required": false
+      },
+      {
+        "id": "autodate_created",
+        "name": "created",
+        "type": "autodate",
+        "system": false,
+        "hidden": false,
+        "presentable": false,
+        "required": false,
+        "onCreate": true,
+        "onUpdate": false
+      },
+      {
+        "id": "autodate_updated",
+        "name": "updated",
+        "type": "autodate",
+        "system": false,
+        "hidden": false,
+        "presentable": false,
+        "required": false,
+        "onCreate": true,
+        "onUpdate": true
+      }
+    ],
+    "indexes": []
+  },
+  {
+    "id": "pbc_vtt_drawings",
+    "name": "drawings",
+    "type": "base",
+    "system": false,
+    "listRule": "@request.auth.id != \"\"",
+    "viewRule": "@request.auth.id != \"\"",
+    "createRule": "@request.auth.id != \"\" && @request.body.author = @request.auth.id",
+    "updateRule": "@request.auth.role = \"dm\"",
+    "deleteRule": "author = @request.auth.id || @request.auth.role = \"dm\"",
+    "fields": [
+      {
+        "id": "text3208210256",
+        "name": "id",
+        "type": "text",
+        "system": true,
+        "hidden": false,
+        "presentable": false,
+        "required": true,
+        "primaryKey": true,
+        "min": 15,
+        "max": 15,
+        "pattern": "^[a-z0-9]+$",
+        "autogeneratePattern": "[a-z0-9]{15}"
+      },
+      {
+        "id": "relation_map",
+        "name": "map",
+        "type": "relation",
+        "system": false,
+        "hidden": false,
+        "presentable": false,
+        "required": true,
+        "collectionId": "pbc_vtt_maps",
+        "cascadeDelete": true,
+        "minSelect": 0,
+        "maxSelect": 1
+      },
+      {
+        "id": "relation_author",
+        "name": "author",
+        "type": "relation",
+        "system": false,
+        "hidden": false,
+        "presentable": false,
+        "required": false,
+        "collectionId": "pbc_vtt_users",
+        "cascadeDelete": true,
+        "minSelect": 0,
+        "maxSelect": 1
+      },
+      {
+        "id": "select_kind",
+        "name": "kind",
+        "type": "select",
+        "system": false,
+        "hidden": false,
+        "presentable": false,
+        "required": true,
+        "maxSelect": 1,
+        "values": [
+          "aoe",
+          "highlight"
+        ]
+      },
+      {
+        "id": "select_shape",
+        "name": "shape",
+        "type": "select",
+        "system": false,
+        "hidden": false,
+        "presentable": false,
+        "required": false,
+        "maxSelect": 1,
+        "values": [
+          "circle",
+          "half",
+          "quarter",
+          "rect"
+        ]
+      },
+      {
+        "id": "number_x1",
+        "name": "x1",
+        "type": "number",
+        "system": false,
+        "hidden": false,
+        "presentable": false,
+        "required": false,
+        "min": null,
+        "max": null,
+        "onlyInt": false
+      },
+      {
+        "id": "number_y1",
+        "name": "y1",
+        "type": "number",
+        "system": false,
+        "hidden": false,
+        "presentable": false,
+        "required": false,
+        "min": null,
+        "max": null,
+        "onlyInt": false
+      },
+      {
+        "id": "number_x2",
+        "name": "x2",
+        "type": "number",
+        "system": false,
+        "hidden": false,
+        "presentable": false,
+        "required": false,
+        "min": null,
+        "max": null,
+        "onlyInt": false
+      },
+      {
+        "id": "number_y2",
+        "name": "y2",
+        "type": "number",
+        "system": false,
+        "hidden": false,
+        "presentable": false,
+        "required": false,
+        "min": null,
+        "max": null,
+        "onlyInt": false
+      },
+      {
+        "id": "text_color",
+        "name": "color",
+        "type": "text",
+        "system": false,
+        "hidden": false,
+        "presentable": false,
+        "required": false,
+        "min": 0,
+        "max": 20,
+        "pattern": "",
+        "autogeneratePattern": "",
+        "primaryKey": false
+      },
+      {
+        "id": "autodate_created",
+        "name": "created",
+        "type": "autodate",
+        "system": false,
+        "hidden": false,
+        "presentable": false,
+        "required": false,
+        "onCreate": true,
+        "onUpdate": false
+      },
+      {
+        "id": "autodate_updated",
+        "name": "updated",
+        "type": "autodate",
+        "system": false,
+        "hidden": false,
+        "presentable": false,
+        "required": false,
+        "onCreate": true,
+        "onUpdate": true
+      }
+    ],
+    "indexes": []
+  },
+  {
+    "id": "pbc_vtt_game",
+    "name": "game",
+    "type": "base",
+    "system": false,
+    "listRule": "@request.auth.id != \"\"",
+    "viewRule": "@request.auth.id != \"\"",
+    "createRule": "@request.auth.role = \"dm\"",
+    "updateRule": "@request.auth.role = \"dm\"",
+    "deleteRule": "@request.auth.role = \"dm\"",
+    "fields": [
+      {
+        "id": "text3208210256",
+        "name": "id",
+        "type": "text",
+        "system": true,
+        "hidden": false,
+        "presentable": false,
+        "required": true,
+        "primaryKey": true,
+        "min": 15,
+        "max": 15,
+        "pattern": "^[a-z0-9]+$",
+        "autogeneratePattern": "[a-z0-9]{15}"
+      },
+      {
+        "id": "relation_active_map",
+        "name": "active_map",
+        "type": "relation",
+        "system": false,
+        "hidden": false,
+        "presentable": false,
+        "required": false,
+        "collectionId": "pbc_vtt_maps",
+        "cascadeDelete": false,
+        "minSelect": 0,
+        "maxSelect": 1
+      },
+      {
+        "id": "autodate_created",
+        "name": "created",
+        "type": "autodate",
+        "system": false,
+        "hidden": false,
+        "presentable": false,
+        "required": false,
+        "onCreate": true,
+        "onUpdate": false
+      },
+      {
+        "id": "autodate_updated",
+        "name": "updated",
+        "type": "autodate",
+        "system": false,
+        "hidden": false,
+        "presentable": false,
+        "required": false,
+        "onCreate": true,
+        "onUpdate": true
+      }
+    ],
+    "indexes": []
+  }
+]
