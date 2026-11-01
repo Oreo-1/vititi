@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    
+    "clean": "rm -rf dist"
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^7.3.1",
