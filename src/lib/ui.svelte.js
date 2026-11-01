@@ -7,6 +7,7 @@ export const ui = $state({
   color: '#ff3b30',
   selectedTokenId: '',
   selectedDrawingId: '',
+  sidebarOpen: true,
 });
 
 export const TOOLS = [
