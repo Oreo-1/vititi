@@ -6,5 +6,6 @@ html, body, #app { height: 100%; margin: 0; }
 .vtt-table svg { display: block; width: 100%; height: 100%; }
 .vtt-sidebar { width: 320px; overflow-y: auto; border-left: 1px solid #ccc; }
 .token-hidden { opacity: 0.45; }
+.token-deceased .vtt-token-body { filter: grayscale(0.7) brightness(0.9); }
 .drop-zone { border: 2px dashed #999; padding: 1rem; text-align: center; }
 .drop-zone.over { border-color: #0d6efd; }

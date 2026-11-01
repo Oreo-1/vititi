@@ -76,6 +76,10 @@
           <input class="form-check-input" type="checkbox" id="tdm" checked={selected.dm_only} onchange={(e) => patch({ dm_only: e.currentTarget.checked })} />
           <label class="form-check-label" for="tdm">🔒 Only DM can move</label>
         </div>
+        <div class="form-check form-switch">
+          <input class="form-check-input" type="checkbox" id="tdead" checked={selected.deceased} onchange={(e) => patch({ deceased: e.currentTarget.checked })} />
+          <label class="form-check-label" for="tdead">💀 Fallen</label>
+        </div>
         <div class="mb-1">
           <label class="form-label small mb-0" for="tmap">Move to map</label>
           <select id="tmap" class="form-select form-select-sm" value="" onchange={(e) => moveToMap(e.currentTarget.value)}>
@@ -92,7 +96,7 @@
         </div>
         <button class="btn btn-sm btn-outline-danger" onclick={remove}>Delete token</button>
       {:else}
-        <strong>{selected.name}</strong>
+        <strong>{selected.deceased ? '💀 ' : ''}{selected.name}</strong>
         <div class="small text-muted">{selected.dm_only ? 'Only the DM can move this token.' : 'Drag to move.'}</div>
       {/if}
     </div>
@@ -102,7 +106,7 @@
     {#each list as t (t.id)}
       <li class="list-group-item list-group-item-action px-1 py-1 small" class:active={ui.selectedTokenId === t.id}>
         <button class="btn btn-link btn-sm p-0 text-reset text-decoration-none" onclick={() => (ui.selectedTokenId = t.id)}>
-          {t.hidden ? '👻 ' : ''}{t.dm_only ? '🔒 ' : ''}{t.name || '(unnamed)'}
+          {t.hidden ? '👻 ' : ''}{t.dm_only ? '🔒 ' : ''}{t.deceased ? '💀 ' : ''}{t.name || '(unnamed)'}
         </button>
       </li>
     {:else}

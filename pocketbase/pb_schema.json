@@ -360,7 +360,7 @@
     "listRule": "@request.auth.id != \"\"",
     "viewRule": "@request.auth.id != \"\"",
     "createRule": "@request.auth.role = \"dm\"",
-    "updateRule": "@request.auth.role = \"dm\" || (@request.auth.id != \"\" && dm_only = false && hidden = false && @request.body.map:isset = false && @request.body.name:isset = false && @request.body.image:isset = false && @request.body.size:isset = false && @request.body.hidden:isset = false && @request.body.dm_only:isset = false)",
+    "updateRule": "@request.auth.role = \"dm\" || (@request.auth.id != \"\" && dm_only = false && hidden = false && @request.body.map:isset = false && @request.body.name:isset = false && @request.body.image:isset = false && @request.body.size:isset = false && @request.body.hidden:isset = false && @request.body.dm_only:isset = false && @request.body.deceased:isset = false)",
     "deleteRule": "@request.auth.role = \"dm\"",
     "fields": [
       {
@@ -475,6 +475,15 @@
       {
         "id": "bool_dm_only",
         "name": "dm_only",
+        "type": "bool",
+        "system": false,
+        "hidden": false,
+        "presentable": false,
+        "required": false
+      },
+      {
+        "id": "bool_deceased",
+        "name": "deceased",
         "type": "bool",
         "system": false,
         "hidden": false,
