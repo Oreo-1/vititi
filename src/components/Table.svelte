@@ -1,8 +1,9 @@
 <script>
   // The interactive viewport: camera, layers, and all pointer tools.
   import {
-    game, currentMap, fogOf, addFogOp, canMoveToken, canDeleteDrawing,
+    game, currentMap, fogOf, addFogOp, canMoveToken, canEditDrawing, canDeleteDrawing,
     beginDrag, endDrag, moveTokenLocal, queueTokenUpdate,
+    beginDrawingDrag, endDrawingDrag, moveDrawingLocal, queueDrawingUpdate,
     createDrawing, deleteDrawing, createToken, deleteToken,
   } from '../lib/game.svelte.js';
   import { isDM } from '../lib/auth.svelte.js';
@@ -13,6 +14,7 @@
   import Fog from './Fog.svelte';
   import Token from './Token.svelte';
   import Drawing from './Drawing.svelte';
+  import DrawingHandles from './DrawingHandles.svelte';
   import Ruler from './Ruler.svelte';
 
   let el;
@@ -27,10 +29,10 @@
   let H = $derived(map?.height || 1000);
   // Hidden tokens are simply not rendered for players (equivalent to display:none).
   let visibleTokens = $derived(game.tokens.filter((t) => dm || !t.hidden));
+  let selectedDrawing = $derived(game.drawings.find((d) => d.id === ui.selectedDrawingId));
 
   let action = null; // current drag interaction (non-reactive)
   let preview = $state(null); // in-progress shape {kind, x1, y1, x2, y2}
-  let measure = $state(null); // last measurement, kept until next click / Esc
   let spaceDown = $state(false);
   let panning = $state(false);
 
@@ -93,7 +95,6 @@
     }
     if (e.button !== 0) return;
 
-    measure = null;
     let kind = ui.tool;
     if (kind.startsWith('fog')) {
       if (!dm) return;
@@ -121,6 +122,74 @@
     e.stopPropagation();
     ui.selectedDrawingId = d.id;
     ui.selectedTokenId = '';
+    if (!canEditDrawing(d)) return;
+    const p = toWorld(e);
+    startDrawingEdit(e, d, { mode: 'move', dx: p.x - d.x1, dy: p.y - d.y1 });
+  }
+
+  function onHandleDown(e, d, h) {
+    if (e.button !== 0 || spaceDown) return;
+    e.stopPropagation();
+    startDrawingEdit(e, d, d.kind === 'aoe' ? { mode: 'radius' } : { mode: 'corner', ax: h.ax, ay: h.ay });
+  }
+
+  function startDrawingEdit(e, d, edit) {
+    el.setPointerCapture(e.pointerId);
+    beginDrawingDrag(d.id);
+    action = {
+      kind: 'drawing',
+      id: d.id,
+      orig: { x1: d.x1, y1: d.y1, x2: d.x2, y2: d.y2 },
+      sx: e.clientX,
+      sy: e.clientY,
+      moved: false,
+      ...edit,
+    };
+  }
+
+  // AoE edge point for pointer p. With snap on, the radius snaps to 5 ft steps; the direction is kept.
+  function aoeEnd(ox, oy, p) {
+    if (!ui.snap) return p;
+    const dx = p.x - ox, dy = p.y - oy;
+    const len = Math.hypot(dx, dy) || 1;
+    const ft = Math.max(G.FT_PER_CELL, Math.round(G.pxToFt(map, len) / G.FT_PER_CELL) * G.FT_PER_CELL);
+    const rpx = G.ftToPx(map, ft);
+    return { x: ox + (dx / len) * rpx, y: oy + (dy / len) * rpx };
+  }
+
+  // New coordinates for the drawing being edited, or null if the pointer would shrink it away.
+  function editedCoords(a, p) {
+    const { x1, y1, x2, y2 } = a.orig;
+    const min = G.ftToPx(map, 1);
+    if (a.mode === 'move') {
+      const s = snapFor('drawing', { x: p.x - a.dx, y: p.y - a.dy });
+      const dx = s.x - x1, dy = s.y - y1;
+      return { x1: x1 + dx, y1: y1 + dy, x2: x2 + dx, y2: y2 + dy };
+    }
+    if (a.mode === 'radius') {
+      const q = aoeEnd(x1, y1, p);
+      return Math.hypot(q.x - x1, q.y - y1) < min ? null : { x2: q.x, y2: q.y };
+    }
+    const q = snapFor('drawing', p);
+    if (Math.abs(q.x - a.ax) < min || Math.abs(q.y - a.ay) < min) return null;
+    return { x1: a.ax, y1: a.ay, x2: q.x, y2: q.y };
+  }
+
+  function updateDrawingEdit(a, e) {
+    // ignore the tiny jitter of a plain click, so selecting never nudges or re-snaps a shape
+    if (!a.moved && Math.hypot(e.clientX - a.sx, e.clientY - a.sy) < 3) return;
+    a.moved = true;
+    const next = editedCoords(a, toWorld(e));
+    const d = game.drawings.find((d) => d.id === a.id);
+    if (!next || !d || Object.entries(next).every(([k, v]) => d[k] === v)) return;
+    moveDrawingLocal(a.id, next);
+    queueDrawingUpdate(a.id, next); // live sync while dragging
+  }
+
+  function cancelDrawingEdit(a) {
+    moveDrawingLocal(a.id, a.orig);
+    if (a.moved) queueDrawingUpdate(a.id, a.orig);
+    endDrawingDrag(a.id);
   }
 
   function onPointerMove(e) {
@@ -128,6 +197,10 @@
     if (action.kind === 'pan') {
       cam.x = action.cx + e.clientX - action.sx;
       cam.y = action.cy + e.clientY - action.sy;
+      return;
+    }
+    if (action.kind === 'drawing') {
+      updateDrawingEdit(action, e);
       return;
     }
     const p = toWorld(e);
@@ -139,15 +212,7 @@
       return;
     }
     if (!preview) return;
-    let q = snapFor(action.kind, p);
-    if (action.kind === 'aoe' && ui.snap) {
-      // snap radius to 5 ft steps, keep direction
-      const dx = p.x - preview.x1, dy = p.y - preview.y1;
-      const len = Math.hypot(dx, dy) || 1;
-      const ft = Math.max(G.FT_PER_CELL, Math.round(G.pxToFt(map, len) / G.FT_PER_CELL) * G.FT_PER_CELL);
-      const rpx = G.ftToPx(map, ft);
-      q = { x: preview.x1 + (dx / len) * rpx, y: preview.y1 + (dy / len) * rpx };
-    }
+    const q = action.kind === 'aoe' ? aoeEnd(preview.x1, preview.y1, p) : snapFor(action.kind, p);
     preview.x2 = q.x;
     preview.y2 = q.y;
   }
@@ -165,17 +230,22 @@
       if (t) {
         let { x, y } = t;
         if (ui.snap) ({ x, y } = G.snapToken(map, x, y, Number(t.size) || 1));
+        // players can't enter the fog: send the token back to where the drag started
+        if (!dm && G.isFogged(map, fog, x, y)) {
+          x = a.ox;
+          y = a.oy;
+        }
         moveTokenLocal(a.id, x, y);
         queueTokenUpdate(a.id, { x, y });
       }
       endDrag(a.id);
       return;
     }
-    if (!pv || a.kind === 'pan') return;
-    if (a.kind === 'measure') {
-      measure = pv;
+    if (a.kind === 'drawing') {
+      endDrawingDrag(a.id);
       return;
     }
+    if (!pv || a.kind === 'pan' || a.kind === 'measure') return;
     if (Math.hypot(pv.x2 - pv.x1, pv.y2 - pv.y1) < 2) return;
 
     try {
@@ -203,8 +273,8 @@
       spaceDown = true;
       e.preventDefault();
     } else if (e.key === 'Escape') {
-      measure = null;
       preview = null;
+      if (action?.kind === 'drawing') cancelDrawingEdit(action);
       if (action && action.kind !== 'token') action = null;
       ui.selectedDrawingId = '';
       ui.selectedTokenId = '';
@@ -291,8 +361,8 @@
             {map}
             zoom={cam.zoom}
             selected={ui.selectedDrawingId === d.id}
+            movable={ui.tool === 'select' && canEditDrawing(d)}
             onpointerdown={(e) => onDrawingDown(e, d)}
-            ondelete={canDeleteDrawing(d) ? () => { ui.selectedDrawingId = ''; deleteDrawing(d.id); } : null}
           />
         {/each}
 
@@ -313,7 +383,17 @@
           <Fog {map} {fog} {dm} />
         {/if}
 
-        <!-- 6. live previews / measurement -->
+        <!-- 6. handles for the selected AoE / highlight -->
+        {#if selectedDrawing && ui.tool === 'select' && canEditDrawing(selectedDrawing)}
+          <DrawingHandles
+            d={selectedDrawing}
+            zoom={cam.zoom}
+            onhandledown={(e, h) => onHandleDown(e, selectedDrawing, h)}
+            ondelete={() => { const id = selectedDrawing.id; ui.selectedDrawingId = ''; deleteDrawing(id); }}
+          />
+        {/if}
+
+        <!-- 7. live previews -->
         {#if preview}
           {#if preview.kind === 'measure'}
             <Ruler a={{ x: preview.x1, y: preview.y1 }} b={{ x: preview.x2, y: preview.y2 }} {map} zoom={cam.zoom} rule={ui.measureRule} />
@@ -325,9 +405,6 @@
             {@const r = G.rectFromPoints(preview.x1, preview.y1, preview.x2, preview.y2)}
             <rect x={r.x} y={r.y} width={r.w} height={r.h} fill="none" stroke={ui.tool === 'fog-hide' ? 'black' : 'white'} stroke-width={2 / cam.zoom} stroke-dasharray="{6 / cam.zoom} {4 / cam.zoom}" pointer-events="none" />
           {/if}
-        {/if}
-        {#if measure}
-          <Ruler a={{ x: measure.x1, y: measure.y1 }} b={{ x: measure.x2, y: measure.y2 }} {map} zoom={cam.zoom} rule={ui.measureRule} />
         {/if}
       </g>
     </svg>

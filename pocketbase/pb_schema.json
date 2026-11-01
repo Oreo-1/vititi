@@ -32,7 +32,7 @@
         "hidden": true,
         "presentable": false,
         "required": true,
-        "min": 8,
+        "min": 1,
         "max": 0,
         "pattern": "",
         "cost": 0
@@ -523,7 +523,7 @@
     "listRule": "@request.auth.id != \"\"",
     "viewRule": "@request.auth.id != \"\"",
     "createRule": "@request.auth.id != \"\" && @request.body.author = @request.auth.id",
-    "updateRule": "@request.auth.role = \"dm\"",
+    "updateRule": "@request.auth.role = \"dm\" || (author = @request.auth.id && @request.body.author:isset = false && @request.body.map:isset = false)",
     "deleteRule": "author = @request.auth.id || @request.auth.role = \"dm\"",
     "fields": [
       {

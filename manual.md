@@ -66,15 +66,16 @@ Register in the app with a name and password. New accounts start as `player`. Th
 - **Maps:** drop or upload images in the sidebar. "View" previews a map for you only. **"Move players here"** switches every player to that map.
 - **Map settings:** grid type (square/hex), cell size in px (1 cell = 5 ft), and X/Y offset so the grid lines up with the map art. Changes sync live.
 - **Tokens:** use the "Add token" form, or drag image files straight onto the map. Select a token to rename or resize it, toggle 👻 hidden, 🔒 DM-only or 💀 deceased (greyed out with a skull badge), move it to another map, or delete it.
-- **Fog:** turn it on in Map settings, then drag rectangles with the **Reveal Fog** and **Hide Fog** tools. "Cover all" and "Reveal all" reset it. The DM sees fog at 50% opacity; players see it solid.
+- **Fog:** turn it on in Map settings, then drag rectangles with the **Reveal Fog** and **Hide Fog** tools. "Cover all" and "Reveal all" reset it. The DM sees fog at 50% opacity; players see it solid. If a player drops a token with its center in the fog, it goes back to where the drag started. The DM can place tokens anywhere.
 
 **Everyone**
 - **Camera:** mouse wheel zooms. Right-drag, middle-drag, Space+drag, or left-drag on empty space (Select tool) pans. "Fit map" re-centres.
 - **Select / Move:** drag tokens. Positions sync live while you drag and snap to the grid on release if *Snap to grid* is on. While dragging, a ruler shows how far the token has moved.
-- **Measure:** drag to measure. Choose how diagonals count (5e = 5 ft each, 5/10/5, or Euclidean). The line stays until your next click or Esc. *Measurements are local and other players don't see them.*
+- **Measure:** drag to measure. Choose how diagonals count (5e = 5 ft each, 5/10/5, or Euclidean). The line disappears as soon as you let go. *Measurements are local and other players don't see them.*
 - **Area of Effect:** pick full, half or quarter circle and a colour, then drag from the origin outward. The drag sets radius and direction. With snap on, the radius snaps to 5 ft steps.
 - **Highlight:** drag a rectangle. Its size is shown in feet.
-- AoEs and highlights stay on the map and sync to everyone. Remove one by selecting it (Select tool) and clicking its red ×, by pressing Delete, or from the sidebar list ("Clear mine"; the DM also gets "Clear all").
+- AoEs and highlights stay on the map and sync to everyone. You can edit your own (the DM can edit any): with the Select tool, drag a shape to move it, or select it and drag a white handle to resize it. An AoE's handle sets its radius and direction; a highlight has one on each corner. Esc cancels a drag in progress.
+- Remove a shape by selecting it (Select tool) and clicking its red ×, by pressing Delete, or from the sidebar list ("Clear mine"; the DM also gets "Clear all").
 
 ## Code layout
 
@@ -87,13 +88,14 @@ src/
   lib/geometry.js      grid snapping (square/hex), distances, AoE shapes
   components/
     Table.svelte       viewport: camera, layers, all pointer tools
-    Grid/Fog/Token/Drawing/Ruler.svelte   SVG layers
+    Grid/Fog/Token/Drawing/DrawingHandles/Ruler.svelte   SVG layers
     Toolbar, Sidebar, MapManager, MapSettings, TokenPanel, DrawingList, Login
 ```
 
-Rendering is one SVG: map image → grid → drawings → tokens → fog → live previews. World coordinates are pixels of the map image. Useful CSS hooks for styling: `.vtt-token`, `.token-hidden`, `.token-deceased`, `.vtt-token-body`, `.vtt-token-skull`, `.vtt-grid-line`, `.vtt-fog`, `.vtt-drawing`, `.vtt-ruler`. CSS beats SVG presentation attributes, so for example `.vtt-grid-line { stroke: red }` works.
+Rendering is one SVG: map image → grid → drawings → tokens → fog → live previews. World coordinates are pixels of the map image. Useful CSS hooks for styling: `.vtt-token`, `.token-hidden`, `.token-deceased`, `.vtt-token-body`, `.vtt-token-skull`, `.vtt-grid-line`, `.vtt-fog`, `.vtt-drawing`, `.vtt-drawing-handle`, `.vtt-ruler`. CSS beats SVG presentation attributes, so for example `.vtt-grid-line { stroke: red }` works.
 
 ## Known limitations (by design, to keep it simple)
 - Hidden tokens and fog are hidden **on the client** (the token isn't rendered for players). A player who inspects network traffic could still see hidden token data. Making this secure requires server-side filtering plus extra handling of realtime events.
 - Measurement lines aren't broadcast to other players.
+- The fog teleport also runs **on the client**. It stops normal play, but a player calling the API directly could still move a token into fog.
 - There's no pinch-zoom on touch devices. Single-finger drag works.

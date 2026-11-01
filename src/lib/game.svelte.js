@@ -108,53 +108,89 @@ function onTokenEvent({ action, record }) {
     remove(game.tokens, record.id);
     return;
   }
-  if (isBusy(record.id)) return; // we're dragging it locally; ignore our own echoes
+  if (tokenUpdates.isBusy(record.id)) return; // we're dragging it locally; ignore our own echoes
   upsert(game.tokens, record);
 }
 
 function onDrawingEvent({ action, record }) {
-  if (action === 'delete' || record.map !== game.viewMapId) remove(game.drawings, record.id);
-  else upsert(game.drawings, record);
+  if (action === 'delete' || record.map !== game.viewMapId) {
+    remove(game.drawings, record.id);
+    return;
+  }
+  if (drawingUpdates.isBusy(record.id)) return; // we're dragging it locally; ignore our own echoes
+  upsert(game.drawings, record);
 }
 
-// ---------------- token movement (ordered, coalesced) ----------------
-// Only one request per token is in flight at a time; newer positions overwrite
+// ---------------- live drag updates (ordered, coalesced) ----------------
+// Only one request per record is in flight at a time; newer values overwrite
 // queued ones. This keeps updates ordered and naturally throttles to network speed.
 
-const pending = new Map();
-const inflight = new Set();
-const dragging = new Set();
+function createUpdateQueue(collection) {
+  const pending = new Map();
+  const inflight = new Set();
+  const dragging = new Set();
+  const failed = new Set();
 
-function isBusy(id) {
-  return dragging.has(id) || pending.has(id) || inflight.has(id);
+  const isBusy = (id) => dragging.has(id) || pending.has(id) || inflight.has(id);
+
+  async function flush(id) {
+    if (inflight.has(id) || !pending.has(id)) return;
+    const data = pending.get(id);
+    pending.delete(id);
+    inflight.add(id);
+    try {
+      await pb.collection(collection).update(id, data);
+    } catch (e) {
+      console.error(`${collection} update failed`, e);
+      failed.add(id);
+    } finally {
+      inflight.delete(id);
+      flush(id);
+      settle(id);
+    }
+  }
+
+  // A rejected update leaves the local copy wrong, so reload the real record once things are idle.
+  async function settle(id) {
+    if (isBusy(id) || !failed.delete(id)) return;
+    try {
+      const record = await pb.collection(collection).getOne(id);
+      if (record.map === game.viewMapId) upsert(game[collection], record);
+    } catch {
+      // deleted meanwhile; the realtime event removes it
+    }
+  }
+
+  return {
+    isBusy,
+    begin(id) { dragging.add(id); },
+    end(id) { dragging.delete(id); settle(id); },
+    queue(id, data) {
+      pending.set(id, { ...(pending.get(id) || {}), ...data });
+      flush(id);
+    },
+  };
 }
 
-export function beginDrag(id) { dragging.add(id); }
-export function endDrag(id) { dragging.delete(id); }
+const tokenUpdates = createUpdateQueue('tokens');
+const drawingUpdates = createUpdateQueue('drawings');
+
+export const beginDrag = tokenUpdates.begin;
+export const endDrag = tokenUpdates.end;
+export const queueTokenUpdate = tokenUpdates.queue;
 
 export function moveTokenLocal(id, x, y) {
   const t = game.tokens.find((t) => t.id === id);
   if (t) { t.x = x; t.y = y; }
 }
 
-export function queueTokenUpdate(id, data) {
-  pending.set(id, { ...(pending.get(id) || {}), ...data });
-  flush(id);
-}
+export const beginDrawingDrag = drawingUpdates.begin;
+export const endDrawingDrag = drawingUpdates.end;
+export const queueDrawingUpdate = drawingUpdates.queue;
 
-async function flush(id) {
-  if (inflight.has(id) || !pending.has(id)) return;
-  const data = pending.get(id);
-  pending.delete(id);
-  inflight.add(id);
-  try {
-    await pb.collection('tokens').update(id, data);
-  } catch (e) {
-    console.error('token update failed', e);
-  } finally {
-    inflight.delete(id);
-    flush(id);
-  }
+export function moveDrawingLocal(id, coords) {
+  const d = game.drawings.find((d) => d.id === id);
+  if (d) Object.assign(d, coords);
 }
 
 // ---------------- permissions ----------------
@@ -165,9 +201,11 @@ export function canMoveToken(token) {
   return !token.dm_only && !token.hidden;
 }
 
-export function canDeleteDrawing(d) {
+export function canEditDrawing(d) {
   return isDM() || d.author === auth.user?.id;
 }
+
+export const canDeleteDrawing = canEditDrawing;
 
 // ---------------- CRUD helpers ----------------
 

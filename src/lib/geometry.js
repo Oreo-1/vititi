@@ -127,6 +127,17 @@ export function rectFromPoints(x1, y1, x2, y2) {
   return { x: Math.min(x1, x2), y: Math.min(y1, y2), w: Math.abs(x2 - x1), h: Math.abs(y2 - y1) };
 }
 
+/** Is this point under fog? Mirrors Fog.svelte: the map starts fogged and later ops paint over earlier ones. */
+export function isFogged(map, fog, x, y) {
+  if (!fog.enabled) return false;
+  if (x < 0 || y < 0 || x > (map.width || 1000) || y > (map.height || 1000)) return false; // fog only covers the map
+  for (let i = fog.ops.length - 1; i >= 0; i--) {
+    const op = fog.ops[i];
+    if (x >= op.x && x <= op.x + op.w && y >= op.y && y <= op.y + op.h) return op.type !== 'reveal';
+  }
+  return true;
+}
+
 export function hexPatternPath(size) {
   const w = size, r = hexRadius(size);
   return {
