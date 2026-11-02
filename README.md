@@ -1,5 +1,8 @@
 # Vititi VTT
+simple virtual tabletop. made with svelte.
+
+<br>
 
 to-do:
-- [ ] connect to cloudflare tunnel
-- [ ] maybe docker compose to bundle both fe and pocketbase?
+- [x] containerize both pocketbase and fe (compose.yaml)
+- [ ] connect to cloudflare tunnel (point it at http://localhost:7777)

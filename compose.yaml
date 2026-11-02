@@ -1,0 +1,34 @@
+name: vititi
+
+services:
+  pocketbase:
+    build:
+      context: ./pocketbase
+      args:
+        PB_VERSION: ${PB_VERSION:-0.40.6}
+    restart: unless-stopped
+    environment:
+      # Optional: creates/updates the dashboard superuser on every start.
+      PB_ADMIN_EMAIL: ${PB_ADMIN_EMAIL:-}
+      PB_ADMIN_PASSWORD: ${PB_ADMIN_PASSWORD:-}
+    volumes:
+      - pb_data:/pb/pb_data
+    # Only reachable by the web container (and not published to the host).
+    expose:
+      - "8090"
+
+  web:
+    build:
+      context: .
+      args:
+        # "/" = same origin, proxied to PocketBase by nginx. Rarely needs changing.
+        VITE_PB_URL: ${VITE_PB_URL:-/}
+    restart: unless-stopped
+    depends_on:
+      pocketbase:
+        condition: service_healthy
+    ports:
+      - "${WEB_PORT:-8080}:80"
+
+volumes:
+  pb_data:

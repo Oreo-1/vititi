@@ -60,6 +60,19 @@ tokens update rule (players may only change x/y of unlocked, visible tokens):
 ### 3. Create the DM account
 Register in the app with a name and password. New accounts start as `player`. Then in the dashboard open **vititi_users**, find your record, and set `role` to `dm`. Log out and back in. Players just register.
 
+### 4. Run with Docker
+
+```bash
+cp .env.example .env     # set PB_ADMIN_EMAIL / PB_ADMIN_PASSWORD
+docker compose up -d --build
+```
+
+- App: http://localhost:7777 (change with `WEB_PORT`)
+- PocketBase dashboard: http://localhost:7777/_/
+- The collections from `pocketbase/pb_schema.json` are imported automatically on the first start.
+- Data (database + uploaded maps/tokens) lives in the `pb_data` volume.
+- Register in the app, then set your user's `role` to `dm` in the dashboard (`vititi_users`).
+
 ## Using it
 
 **DM**

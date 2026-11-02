@@ -1,0 +1,13 @@
+# use this compose if you have an external PocketBase server running elsewhere instead.
+
+name: vititi
+
+services:
+  web:
+    build:
+      context: .
+      args:
+        VITE_PB_URL: ${EXTERNAL_PB_URL:?set EXTERNAL_PB_URL in .env}
+    restart: unless-stopped
+    ports:
+      - "${WEB_PORT:-8080}:80"
