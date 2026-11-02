@@ -1,0 +1,12 @@
+# Used automatically by BuildKit for docker/pocketbase/Dockerfile (build context = project root).
+# The image only needs pocketbase/pb_schema.json and docker/pocketbase/.
+**/node_modules
+dist
+.git
+.env
+.env.*
+src
+Public
+web
+docker/web
+pocketbase/pb_data

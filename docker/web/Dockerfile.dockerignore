@@ -1,0 +1,9 @@
+# Used automatically by BuildKit for docker/web/Dockerfile (build context = project root).
+**/node_modules
+dist
+.git
+.env
+.env.*
+docker/pocketbase
+pocketbase
+*.md

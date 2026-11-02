@@ -30,7 +30,7 @@ The app uses its **own** auth collection, `vititi_users`, and leaves PocketBase'
 
 **Option A: JSON import (easiest).** Open **Settings → Import collections** in the dashboard and paste or load `pocketbase/pb_schema.json`. Make sure the "delete missing collections" option is **off**, so your other collections are kept. Review the changes, then confirm. This creates `vititi_users`, `maps`, `tokens`, `drawings` and `game` with all fields and API rules.
 
-**Option B: migration.** Copy `pocketbase/pb_migrations/1793400000_init_vtt.js` into the `pb_migrations/` folder next to your `pocketbase` executable. Restart PocketBase, or run `./pocketbase migrate up`.
+**Option B: migration.** Copy `docker/pocketbase/pb_migrations/1793400001_import_vititi_schema.js` into the `pb_migrations/` folder next to your `pocketbase` executable and start it with `PB_SCHEMA_FILE=/path/to/pb_schema.json ./pocketbase serve` (or run `./pocketbase migrate up`). It imports `pocketbase/pb_schema.json` once, on a fresh database.
 
 **What gets created** (for reference, or if you'd rather build it by hand):
 
@@ -63,7 +63,7 @@ Register in the app with a name and password. New accounts start as `player`. Th
 ### 4. Run with Docker
 
 ```bash
-cp .env.example .env     # set PB_ADMIN_EMAIL / PB_ADMIN_PASSWORD
+cp docker/.env.example .env     # set PB_ADMIN_EMAIL / PB_ADMIN_PASSWORD
 docker compose up -d --build
 ```
 

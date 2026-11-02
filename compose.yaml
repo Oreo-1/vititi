@@ -3,7 +3,8 @@ name: vititi
 services:
   pocketbase:
     build:
-      context: ./pocketbase
+      context: .
+      dockerfile: docker/pocketbase/Dockerfile
       args:
         PB_VERSION: ${PB_VERSION:-0.40.6}
     restart: unless-stopped
@@ -20,9 +21,11 @@ services:
   web:
     build:
       context: .
+      dockerfile: docker/web/Dockerfile
       args:
-        # "/" = same origin, proxied to PocketBase by nginx. Rarely needs changing.
-        VITE_PB_URL: ${VITE_PB_URL:-/}
+        # Hardcoded on purpose: "/" = same origin, proxied to PocketBase by nginx.
+        # Not read from .env, so a dev VITE_PB_URL there can't leak into the image.
+        VITE_PB_URL: "/"
     restart: unless-stopped
     depends_on:
       pocketbase:
