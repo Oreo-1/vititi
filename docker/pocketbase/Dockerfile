@@ -1,8 +1,10 @@
 # syntax=docker/dockerfile:1
-FROM alpine:3.20
+FROM alpine:3.24.3
 
-# PocketBase release to download (https://github.com/pocketbase/pocketbase/releases).
-ARG PB_VERSION=0.40.6
+# PocketBase release to download (check https://pocketbase.io for the latest version).
+ARG PB_VERSION=0.41.1
+ARG PB_DOWNLOAD_BASE=https://ganigeorgiev.com/meta/pocketbase/pocketbase/download
+
 # Set automatically by BuildKit (amd64 / arm64 / arm).
 ARG TARGETARCH
 
@@ -13,7 +15,7 @@ RUN apk add --no-cache ca-certificates unzip wget \
       arm)   PB_ARCH=armv7 ;; \
       *) echo "unsupported arch: ${TARGETARCH}" >&2; exit 1 ;; \
     esac \
- && wget -q -O /tmp/pb.zip "https://github.com/pocketbase/pocketbase/releases/download/v${PB_VERSION}/pocketbase_${PB_VERSION}_linux_${PB_ARCH}.zip" \
+ && wget -q -O /tmp/pb.zip "${PB_DOWNLOAD_BASE}/v${PB_VERSION}/pocketbase_${PB_VERSION}_linux_${PB_ARCH}.zip" \
  && mkdir -p /pb \
  && unzip -q /tmp/pb.zip pocketbase -d /pb \
  && chmod +x /pb/pocketbase \
