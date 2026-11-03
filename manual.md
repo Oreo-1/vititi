@@ -5,10 +5,10 @@ A simple virtual tabletop: Svelte 5 + Bootstrap 5 on the front end, PocketBase (
 ## Run the front end
 
 ```bash
-npm install
+pnpm install
 cp .env.example .env      # then set VITE_PB_URL to your PocketBase server
-npm run dev               # dev server
-npm run build             # static build in dist/ (host it anywhere)
+pnpm dev                  # dev server
+pnpm build                # static build in dist/ (host it anywhere)
 ```
 
 ## Connect your PocketBase server
@@ -18,7 +18,6 @@ In `.env`:
 ```
 VITE_PB_URL=https://pb.example.com
 ```
-Restart `npm run dev` after changing it. Vite only reads `.env` at startup.
 
 - If the VTT is served over **https**, PocketBase must be **https** too, or the browser blocks it as mixed content.
 - CORS: PocketBase allows every origin by default. If you started it with `--origins=...`, add the VTT's URL to that list.

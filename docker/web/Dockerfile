@@ -4,8 +4,11 @@
 FROM node:lts-alpine3.24 AS build
 WORKDIR /app
 
-COPY package.json package-lock.json ./
-RUN npm ci --no-audit --no-fund
+COPY package.json pnpm-lock.yaml ./
+# Node 25+ images no longer ship corepack, so npm is only used to bootstrap the
+# pnpm version pinned in package.json's "packageManager" field.
+RUN npm install -g --no-audit --no-fund "$(node -p "require('./package.json').packageManager")"
+RUN pnpm install --frozen-lockfile
 
 COPY . .
 
@@ -14,7 +17,7 @@ COPY . .
 # and it works unchanged behind a tunnel or reverse proxy.
 ARG VITE_PB_URL=/
 ENV VITE_PB_URL=$VITE_PB_URL
-RUN npm run build
+RUN pnpm run build
 
 # ---- serve it with nginx ---------------------------------------------------
 FROM nginx:alpine3.24
