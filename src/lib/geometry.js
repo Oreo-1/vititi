@@ -138,6 +138,26 @@ export function isFogged(map, fog, x, y) {
   return true;
 }
 
+const FOG_SOFTNESS = 0.2; // blur strength in grid cells, so edges look the same on any map
+
+/**
+ * How to draw the smoothed fog mask: blur strength, the margin the blur needs around
+ * the map, and the fog rects. Rects touching a map edge are stretched past it, otherwise
+ * the blur would fade them against the empty space outside the map.
+ */
+export function fogSmoothing(map, fog) {
+  const W = map.width || 1000, H = map.height || 1000;
+  const blur = grid(map).size * FOG_SOFTNESS;
+  const pad = Math.ceil(blur * 3); // a Gaussian blur is negligible past 3 standard deviations
+  const rects = fog.ops.map((op) => {
+    const x1 = op.x <= 0 ? -pad : op.x, y1 = op.y <= 0 ? -pad : op.y;
+    const x2 = op.x + op.w >= W ? W + pad : op.x + op.w;
+    const y2 = op.y + op.h >= H ? H + pad : op.y + op.h;
+    return { type: op.type, x: x1, y: y1, w: x2 - x1, h: y2 - y1 };
+  });
+  return { blur, pad, rects };
+}
+
 export function hexPatternPath(size) {
   const w = size, r = hexRadius(size);
   return {
