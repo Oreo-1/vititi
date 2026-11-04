@@ -13,6 +13,6 @@ sside:
 
 fts:
 - [ ] renamable aoe & highlight
-- [ ] copy & paste token
+- [x] copy & paste token
 - [x] fog smoothing per tile so it doesn't appear too blocky
 - [ ] initiative tracker? like hsr. also action advance and 

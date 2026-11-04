@@ -16,6 +16,8 @@
     <MapManager />
     <MapSettings />
   {/if}
+  <hr>
   <TokenPanel />
+  <hr>
   <DrawingList />
 </aside>

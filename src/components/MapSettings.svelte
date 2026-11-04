@@ -11,7 +11,6 @@
     if (map && map.id !== formFor) {
       formFor = map.id;
       form = {
-        name: map.name,
         grid_type: map.grid_type || 'square',
         grid_size: map.grid_size || 70,
         grid_offset_x: map.grid_offset_x || 0,
@@ -35,11 +34,6 @@
 {#if map}
   <section class="mb-3">
     <h2 class="h6">Map settings</h2>
-    <div class="mb-2">
-      <label class="form-label small mb-0" for="mname">Name</label>
-      <input id="mname" class="form-control form-control-sm" bind:value={form.name} oninput={save} />
-    </div>
-
     <div class="form-check form-switch">
       <input class="form-check-input" type="checkbox" id="gridvis" bind:checked={form.grid_visible} onchange={save} />
       <label class="form-check-label" for="gridvis">Show grid</label>
