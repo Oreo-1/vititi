@@ -77,7 +77,7 @@ docker compose up -d --build
 **DM**
 - **Maps:** drop or upload images in the sidebar. "View" previews a map for you only. **"Move players here"** switches every player to that map.
 - **Map settings:** grid type (square/hex), cell size in px (1 cell = 5 ft), and X/Y offset so the grid lines up with the map art. Changes sync live.
-- **Tokens:** use the "Add token" form, or drag image files straight onto the map. Select a token to rename or resize it, toggle 👻 hidden, 🔒 DM-only or 💀 deceased (greyed out with a skull badge), move it to another map, or delete it.
+- **Tokens:** use the "Add token" form, or drag image files straight onto the map. Select a token to rename or resize it, toggle 👻 hidden, 🔒 DM-only or 💀 deceased (greyed out with a skull badge), move it to another map, clone it, or delete it. A clone copies the token's name, image, size and toggles, and appears next to the original.
 - **Fog:** turn it on in Map settings, then drag rectangles with the **Reveal Fog** and **Hide Fog** tools. "Cover all" and "Reveal all" reset it. The DM sees fog at 50% opacity; players see it solid. Fog edges are softened, fading inward from the edge of each revealed area; change `FOG_SOFTNESS` in `src/lib/geometry.js` to adjust this. If a player drops a token with its center in the fog, it goes back to where the drag started. The DM can place tokens anywhere.
 
 **Everyone**

@@ -1,6 +1,7 @@
 // Central client-side state + PocketBase realtime sync.
-import { pb } from './pb.js';
+import { pb, fileUrl } from './pb.js';
 import { auth, isDM } from './auth.svelte.js';
+import { cellSize } from './geometry.js';
 
 export const game = $state({
   maps: [],
@@ -255,7 +256,7 @@ export async function setActiveMap(mapId) {
   else game.state = await pb.collection('game').update(game.state.id, { active_map: mapId });
 }
 
-export async function createToken({ name, file, x, y, size = 1, hidden = false, dm_only = false, mapId }) {
+export async function createToken({ name, file, x, y, size = 1, hidden = false, dm_only = false, deceased = false, mapId }) {
   const fd = new FormData();
   fd.append('map', mapId || game.viewMapId);
   fd.append('name', name || 'Token');
@@ -265,7 +266,36 @@ export async function createToken({ name, file, x, y, size = 1, hidden = false, 
   fd.append('size', size);
   fd.append('hidden', hidden);
   fd.append('dm_only', dm_only);
+  fd.append('deceased', deceased);
   return pb.collection('tokens').create(fd);
+}
+
+// clone needs its own copy of the image.
+async function downloadTokenImage(token) {
+  const res = await fetch(fileUrl(token, token.image));
+  if (!res.ok) throw new Error(`Could not copy the token image (HTTP ${res.status})`);
+  const blob = await res.blob();
+  // Drop the random suffix PocketBase added, or it would pile up with every clone of a clone.
+  const name = token.image.replace(/_[a-z0-9]{10}(\.[^.]*)?$/i, '$1');
+  return new File([blob], name, { type: blob.type });
+}
+
+// copy a token to the side of the original, moving by whole cells
+export async function cloneToken(token) {
+  const map = game.maps.find((m) => m.id === token.map);
+  const offset = Math.ceil(Number(token.size) || 1) * cellSize(map);
+  const fitsRight = token.x + offset <= (map?.width || 1000);
+  return createToken({
+    name: token.name,
+    file: token.image ? await downloadTokenImage(token) : undefined,
+    x: fitsRight ? token.x + offset : token.x - offset,
+    y: token.y,
+    size: token.size,
+    hidden: token.hidden,
+    dm_only: token.dm_only,
+    deceased: token.deceased,
+    mapId: token.map,
+  });
 }
 
 export async function updateToken(id, data) {

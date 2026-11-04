@@ -1,6 +1,6 @@
 <script>
   import { isDM } from '../lib/auth.svelte.js';
-  import { game, currentMap, createToken, updateToken, deleteToken } from '../lib/game.svelte.js';
+  import { game, currentMap, createToken, cloneToken, updateToken, deleteToken } from '../lib/game.svelte.js';
   import { ui } from '../lib/ui.svelte.js';
   import { snapToken } from '../lib/geometry.js';
 
@@ -42,6 +42,20 @@
     const id = selected.id;
     ui.selectedTokenId = '';
     await updateToken(id, { map: mapId, x: c.x, y: c.y });
+  }
+
+  let cloning = $state(false);
+
+  async function clone() {
+    cloning = true;
+    try {
+      const rec = await cloneToken(selected);
+      ui.selectedTokenId = rec.id;
+    } catch (err) {
+      alert(err?.message || err);
+    } finally {
+      cloning = false;
+    }
   }
 
   async function remove() {
@@ -94,7 +108,10 @@
           <input id="timg" type="file" accept="image/*" class="form-control form-control-sm"
             onchange={(e) => { const f = e.currentTarget.files[0]; if (f) { const fd = new FormData(); fd.append('image', f); patch(fd); } }} />
         </div>
-        <button class="btn btn-sm btn-outline-danger" onclick={remove}>Delete token</button>
+        <div class="d-flex gap-1">
+          <button class="btn btn-sm btn-outline-secondary" onclick={clone} disabled={cloning}>Clone token</button>
+          <button class="btn btn-sm btn-outline-danger" onclick={remove}>Delete token</button>
+        </div>
       {:else}
         <strong>{selected.deceased ? '💀 ' : ''}{selected.name}</strong>
         <div class="small text-muted">{selected.dm_only ? 'Only the DM can move this token.' : 'Drag to move.'}</div>
