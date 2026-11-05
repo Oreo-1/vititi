@@ -12,7 +12,7 @@ sside:
 - [ ] connect to cloudflare tunnel (point it at http://localhost:7777)
 
 fts:
-- [ ] renamable aoe & highlight
+- [x] renamable aoe & highlight
 - [x] copy & paste token
 - [x] fog smoothing per tile so it doesn't appear too blocky
 - [ ] initiative tracker? like hsr. also action advance and 

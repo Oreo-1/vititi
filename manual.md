@@ -31,6 +31,8 @@ The app uses its **own** auth collection, `vititi_users`, and leaves PocketBase'
 
 **Option B: migration.** Copy `docker/pocketbase/pb_migrations/1793400001_import_vititi_schema.js` into the `pb_migrations/` folder next to your `pocketbase` executable and start it with `PB_SCHEMA_FILE=/path/to/pb_schema.json ./pocketbase serve` (or run `./pocketbase migrate up`). It imports `pocketbase/pb_schema.json` once, on a fresh database.
 
+**Updating an existing database.** A newer version of the app can need new fields, and `pb_schema.json` isn't imported again automatically. With Docker, `docker compose up -d --build` applies them through the migrations in `docker/pocketbase/pb_migrations/`. On your own PocketBase server, repeat Option A, or copy over any new migration files if you used Option B. Without the new fields, those values aren't saved: for example, renaming an AoE or highlight would appear to do nothing.
+
 **What gets created** (for reference, or if you'd rather build it by hand):
 
 | Collection | Fields |
@@ -38,7 +40,7 @@ The app uses its **own** auth collection, `vititi_users`, and leaves PocketBase'
 | `vititi_users` (auth) | `name` text (required, unique index, set as the only *identity field* under Options → Password auth), `role` select (`dm`,`player`). The built-in `email` field is set to not required. |
 | `maps` | `name` text (required), `image` file (single, images, max ~50MB), `width` `height` numbers, `grid_type` select (`square`,`hex`), `grid_size` `grid_offset_x` `grid_offset_y` numbers, `grid_visible` bool, `fog` json, `created` autodate |
 | `tokens` | `map` relation→maps (single, required, cascade delete), `name` text, `image` file, `x` `y` `size` numbers, `hidden` bool, `dm_only` bool, `deceased` bool, `created` autodate |
-| `drawings` | `map` relation→maps (cascade), `author` relation→vititi_users, `kind` select (`aoe`,`highlight`), `shape` select (`circle`,`half`,`quarter`,`rect`), `x1` `y1` `x2` `y2` numbers, `color` text, `created` autodate |
+| `drawings` | `map` relation→maps (cascade), `author` relation→vititi_users, `kind` select (`aoe`,`highlight`), `shape` select (`circle`,`half`,`quarter`,`rect`), `x1` `y1` `x2` `y2` numbers, `color` text, `name` text (optional, max 50), `created` autodate |
 | `game` | `active_map` relation→maps (single, not cascade), `created` autodate |
 
 API rules (A = `@request.auth.id != ""`, DM = `@request.auth.role = "dm"`):
@@ -48,7 +50,7 @@ API rules (A = `@request.auth.id != ""`, DM = `@request.auth.role = "dm"`):
 | vititi_users | A | `@request.body.role = "player"` | `id = @request.auth.id && @request.body.role:isset = false` | superusers only |
 | maps | A | DM | DM | DM |
 | tokens | A | DM | see below | DM |
-| drawings | A | `@request.auth.id != "" && @request.body.author = @request.auth.id` | DM | `author = @request.auth.id \|\| @request.auth.role = "dm"` |
+| drawings | A | `@request.auth.id != "" && @request.body.author = @request.auth.id` | DM, or the author (who can't change `author` or `map`) | `author = @request.auth.id \|\| @request.auth.role = "dm"` |
 | game | A | DM | DM | DM |
 
 tokens update rule (players may only change x/y of unlocked, visible tokens):
@@ -87,6 +89,7 @@ docker compose up -d --build
 - **Area of Effect:** pick full, half or quarter circle and a colour, then drag from the origin outward. The drag sets radius and direction. With snap on, the radius snaps to 5 ft steps.
 - **Highlight:** drag a rectangle. Its size is shown in feet.
 - AoEs and highlights stay on the map and sync to everyone. You can edit your own (the DM can edit any): with the Select tool, drag a shape to move it, or select it and drag a white handle to resize it. An AoE's handle sets its radius and direction; a highlight has one on each corner. Esc cancels a drag in progress.
+- **Naming shapes:** click ✏️ next to a shape in the sidebar list to give it a name, like "Fireball". The name shows on the map next to its size. Enter or clicking away saves, Esc cancels, and saving it blank removes the name. Names are optional, and you can rename your own shapes (the DM can rename any).
 - Remove a shape by selecting it (Select tool) and clicking its red ×, by pressing Delete, or from the sidebar list ("Clear mine"; the DM also gets "Clear all").
 
 ## Code layout

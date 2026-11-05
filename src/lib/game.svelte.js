@@ -310,6 +310,10 @@ export async function createDrawing(d) {
   return pb.collection('drawings').create({ ...d, map: game.viewMapId, author: auth.user.id });
 }
 
+export async function updateDrawing(id, data) {
+  return pb.collection('drawings').update(id, data);
+}
+
 export async function deleteDrawing(id) {
   return pb.collection('drawings').delete(id);
 }

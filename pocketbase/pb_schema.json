@@ -659,6 +659,20 @@
         "primaryKey": false
       },
       {
+        "id": "text_name",
+        "name": "name",
+        "type": "text",
+        "system": false,
+        "hidden": false,
+        "presentable": false,
+        "required": false,
+        "min": 0,
+        "max": 50,
+        "pattern": "",
+        "autogeneratePattern": "",
+        "primaryKey": false
+      },
+      {
         "id": "autodate_created",
         "name": "created",
         "type": "autodate",
