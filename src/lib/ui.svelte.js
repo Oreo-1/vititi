@@ -2,7 +2,7 @@
 export const ui = $state({
   tool: 'select', // select | measure | aoe | highlight | fog-reveal | fog-hide
   aoeShape: 'circle', // circle | half | quarter
-  snap: true,
+  snap: false,
   measureRule: '5e', // 5e | alt | euclid
   color: '#ff3b30',
   selectedTokenId: '',

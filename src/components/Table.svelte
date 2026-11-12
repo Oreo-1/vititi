@@ -413,4 +413,14 @@
     </div>
     <button class="btn btn-sm btn-light position-absolute top-0 start-0 m-2" onpointerdown={(e) => e.stopPropagation()} onclick={fit}>Fit map</button>
   {/if}
+  <!-- outside the map check: the DM needs the sidebar to upload the first map -->
+  <button
+    class="btn btn-sm btn-light position-absolute top-0 end-0 m-2"
+    aria-controls="vtt-sidebar"
+    aria-expanded={ui.sidebarOpen}
+    onpointerdown={(e) => e.stopPropagation()}
+    onclick={() => (ui.sidebarOpen = !ui.sidebarOpen)}
+  >
+    {ui.sidebarOpen ? 'Hide sidebar' : 'Show sidebar'}
+  </button>
 </div>

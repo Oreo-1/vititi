@@ -31,7 +31,7 @@ The app uses its **own** auth collection, `vititi_users`, and leaves PocketBase'
 
 **Option B: migration.** Copy `docker/pocketbase/pb_migrations/1793400001_import_vititi_schema.js` into the `pb_migrations/` folder next to your `pocketbase` executable and start it with `PB_SCHEMA_FILE=/path/to/pb_schema.json ./pocketbase serve` (or run `./pocketbase migrate up`). It imports `pocketbase/pb_schema.json` once, on a fresh database.
 
-**Updating an existing database.** A newer version of the app can need new fields, and `pb_schema.json` isn't imported again automatically. With Docker, `docker compose up -d --build` applies them through the migrations in `docker/pocketbase/pb_migrations/`. On your own PocketBase server, repeat Option A, or copy over any new migration files if you used Option B. Without the new fields, those values aren't saved: for example, renaming an AoE or highlight would appear to do nothing.
+**Updating an existing database.** A newer version of the app can need new fields, and `pb_schema.json` is only imported automatically on a fresh database. For any existing database, Docker included, repeat Option A in the dashboard. Without the new fields, those values aren't saved: for example, renaming an AoE or highlight would appear to do nothing.
 
 **What gets created** (for reference, or if you'd rather build it by hand):
 
@@ -83,8 +83,8 @@ docker compose up -d --build
 - **Fog:** turn it on in Map settings, then drag rectangles with the **Reveal Fog** and **Hide Fog** tools. "Cover all" and "Reveal all" reset it. The DM sees fog at 50% opacity; players see it solid. Fog edges are softened, fading inward from the edge of each revealed area; change `FOG_SOFTNESS` in `src/lib/geometry.js` to adjust this. If a player drops a token with its center in the fog, it goes back to where the drag started. The DM can place tokens anywhere.
 
 **Everyone**
-- **Camera:** mouse wheel zooms. Right-drag, middle-drag, Space+drag, or left-drag on empty space (Select tool) pans. "Fit map" re-centres.
-- **Select / Move:** drag tokens. Positions sync live while you drag and snap to the grid on release if *Snap to grid* is on. While dragging, a ruler shows how far the token has moved.
+- **Camera:** mouse wheel zooms. Right-drag, middle-drag, Space+drag, or left-drag on empty space (Select tool) pans. "Fit map" re-centres. "Hide sidebar" (top right of the map) gives the map the full width, and "Show sidebar" brings it back.
+- **Select / Move:** drag tokens. Positions sync live while you drag and snap to the grid on release if *Snap to grid* is on (it starts off). While dragging, a ruler shows how far the token has moved.
 - **Measure:** drag to measure. Choose how diagonals count (5e = 5 ft each, 5/10/5, or Euclidean). The line disappears as soon as you let go. *Measurements are local and other players don't see them.*
 - **Area of Effect:** pick full, half or quarter circle and a colour, then drag from the origin outward. The drag sets radius and direction. With snap on, the radius snaps to 5 ft steps.
 - **Highlight:** drag a rectangle. Its size is shown in feet.

@@ -46,13 +46,5 @@
     Players on: <strong>{activeMapName}</strong>
     | {auth.user?.name} ({isDM() ? 'DM' : 'Player'})
   </span>
-  <button
-    class="btn btn-sm btn-outline-secondary"
-    aria-controls="vtt-sidebar"
-    aria-expanded={ui.sidebarOpen}
-    onclick={() => (ui.sidebarOpen = !ui.sidebarOpen)}
-  >
-    {ui.sidebarOpen ? 'Hide sidebar' : 'Show sidebar'}
-  </button>
   <button class="btn btn-sm btn-outline-secondary" onclick={logout}>Logout</button>
 </nav>
