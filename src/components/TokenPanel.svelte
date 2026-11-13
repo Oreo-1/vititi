@@ -6,7 +6,10 @@
 
   let map = $derived(currentMap());
   let dm = $derived(isDM());
-  let list = $derived(game.tokens.filter((t) => dm || !t.hidden));
+  // A–Z, ignoring case and with numbers in order ("Goblin 2" before "Goblin 10").
+  // Same names keep the order they were added in, since sort is stable.
+  const byName = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
+  let list = $derived(game.tokens.filter((t) => dm || !t.hidden).sort((a, b) => byName.compare(a.name || '', b.name || '')));
   let selected = $derived(list.find((t) => t.id === ui.selectedTokenId) || null);
 
   // ---- new token form ----
