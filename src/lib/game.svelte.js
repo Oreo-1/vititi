@@ -15,6 +15,11 @@ export const game = $state({
 
 export const currentMap = () => game.maps.find((m) => m.id === game.viewMapId) || null;
 
+// A–Z, ignoring case and with numbers in order ("Goblin 2" before "Goblin 10").
+// Same names keep their existing order, since sort is stable.
+const byName = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
+export const sortByName = (tokens) => [...tokens].sort((a, b) => byName.compare(a.name || '', b.name || ''));
+
 let unsubs = [];
 
 // ---------------- lifecycle ----------------
@@ -98,6 +103,8 @@ function onMapEvent({ action, record }) {
 
 function onGameEvent({ action, record }) {
   if (action === 'delete') return;
+  // our own initiative changes are still on their way; don't let an older echo undo them
+  if (initiativePending > 0 && game.state) record = { ...record, initiative: game.state.initiative };
   const prevActive = game.state?.active_map;
   game.state = record;
   // Players always follow the active map. The DM keeps whatever they're looking at.
@@ -105,6 +112,10 @@ function onGameEvent({ action, record }) {
 }
 
 function onTokenEvent({ action, record }) {
+  // a deleted token leaves the turn order (events arrive for every map, so this covers them all)
+  if (action === 'delete' && isDM() && initiativeOrder().some((e) => e.token === record.id)) {
+    removeFromInitiative(record.id).catch((e) => console.error('initiative update failed', e));
+  }
   if (action === 'delete' || record.map !== game.viewMapId) {
     remove(game.tokens, record.id);
     return;
@@ -321,6 +332,60 @@ export async function deleteDrawing(id) {
 export async function clearDrawings({ onlyMine }) {
   const targets = game.drawings.filter((d) => !onlyMine || d.author === auth.user?.id).filter(canDeleteDrawing);
   await Promise.all(targets.map((d) => pb.collection('drawings').delete(d.id)));
+}
+
+// ---------------- initiative (turn order) ----------------
+// Stored on the game record as [{ token, name }]. Index 0 is acting now. `name` is a
+// snapshot for when the token isn't loaded (DM viewing another map, or it was deleted).
+
+let initiativePending = 0;
+
+export function initiativeOrder() {
+  const list = game.state?.initiative;
+  return Array.isArray(list) ? list.filter((e) => e && e.token) : [];
+}
+
+export async function setInitiative(order) {
+  if (!game.state) game.state = await pb.collection('game').create({ active_map: game.viewMapId || null });
+  game.state.initiative = order; // optimistic
+  initiativePending++;
+  try {
+    await pb.collection('game').update(game.state.id, { initiative: order });
+  } catch (e) {
+    // the local order is now wrong; reload the real one before reporting the error
+    try { game.state = await pb.collection('game').getOne(game.state.id); } catch {}
+    throw e;
+  } finally {
+    initiativePending--;
+  }
+}
+
+export function addToInitiative(tokens) {
+  const order = initiativeOrder();
+  const fresh = tokens.filter((t) => !order.some((e) => e.token === t.id)).map((t) => ({ token: t.id, name: t.name || '' }));
+  return fresh.length ? setInitiative([...order, ...fresh]) : Promise.resolve();
+}
+
+export function removeFromInitiative(tokenId) {
+  return setInitiative(initiativeOrder().filter((e) => e.token !== tokenId));
+}
+
+/** The current actor goes to the back of the queue. */
+export function nextTurn() {
+  const [first, ...rest] = initiativeOrder();
+  return first ? setInitiative([...rest, first]) : Promise.resolve();
+}
+
+export function moveInitiative(from, to) {
+  const order = initiativeOrder();
+  if (from === to || !order[from]) return Promise.resolve();
+  const [moved] = order.splice(from, 1);
+  order.splice(to, 0, moved);
+  return setInitiative(order);
+}
+
+export function clearInitiative() {
+  return setInitiative([]);
 }
 
 // ---------------- fog of war ----------------

@@ -8,6 +8,7 @@ export const ui = $state({
   selectedTokenId: '',
   selectedDrawingId: '',
   sidebarOpen: true,
+  initiativeOpen: true,
 });
 
 export const TOOLS = [

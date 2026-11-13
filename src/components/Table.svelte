@@ -16,6 +16,7 @@
   import Drawing from './Drawing.svelte';
   import DrawingHandles from './DrawingHandles.svelte';
   import Ruler from './Ruler.svelte';
+  import InitiativeTracker from './InitiativeTracker.svelte';
 
   let el;
   let cw = $state(0);
@@ -440,10 +441,11 @@
         {/if}
       </g>
     </svg>
-    <div class="position-absolute bottom-0 start-0 p-1 small text-white-50" style="pointer-events:none">
+    <div class="position-absolute bottom-0 end-0 p-1 small text-white-50 text-end" style="pointer-events:none">
       Zoom {Math.round(cam.zoom * 100)}% · wheel = zoom · right/middle drag or Space+drag = pan
     </div>
     <button class="btn btn-sm btn-light position-absolute top-0 start-0 m-2" onpointerdown={(e) => e.stopPropagation()} onclick={fit}>Fit map</button>
+    <InitiativeTracker />
   {/if}
   <!-- outside the map check: the DM needs the sidebar to upload the first map -->
   <button

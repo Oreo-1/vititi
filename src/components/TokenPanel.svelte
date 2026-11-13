@@ -1,16 +1,19 @@
 <script>
   import { isDM } from '../lib/auth.svelte.js';
-  import { game, currentMap, createToken, cloneToken, updateToken, deleteToken } from '../lib/game.svelte.js';
+  import { game, currentMap, createToken, cloneToken, updateToken, deleteToken, initiativeOrder, addToInitiative, removeFromInitiative, sortByName } from '../lib/game.svelte.js';
   import { ui } from '../lib/ui.svelte.js';
   import { snapToken } from '../lib/geometry.js';
 
   let map = $derived(currentMap());
   let dm = $derived(isDM());
-  // A–Z, ignoring case and with numbers in order ("Goblin 2" before "Goblin 10").
-  // Same names keep the order they were added in, since sort is stable.
-  const byName = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
-  let list = $derived(game.tokens.filter((t) => dm || !t.hidden).sort((a, b) => byName.compare(a.name || '', b.name || '')));
+  let list = $derived(sortByName(game.tokens.filter((t) => dm || !t.hidden)));
   let selected = $derived(list.find((t) => t.id === ui.selectedTokenId) || null);
+  let inInitiative = $derived(!!selected && initiativeOrder().some((e) => e.token === selected.id));
+
+  function toggleInitiative() {
+    const job = inInitiative ? removeFromInitiative(selected.id) : addToInitiative([selected]);
+    job.catch((e) => alert('Could not update the turn order: ' + (e?.message || e)));
+  }
 
   // ---- new token form ----
   let nt = $state({ name: '', size: 1, hidden: false, dm_only: false });
@@ -111,9 +114,10 @@
           <input id="timg" type="file" accept="image/*" class="form-control form-control-sm"
             onchange={(e) => { const f = e.currentTarget.files[0]; if (f) { const fd = new FormData(); fd.append('image', f); patch(fd); } }} />
         </div>
-        <div class="d-flex gap-1">
+        <div class="d-flex flex-wrap gap-1">
           <button class="btn btn-sm btn-outline-secondary" onclick={clone} disabled={cloning}>Clone token</button>
           <button class="btn btn-sm btn-outline-danger" onclick={remove}>Delete token</button>
+          <button class="btn btn-sm btn-outline-primary" onclick={toggleInitiative}>{inInitiative ? 'Remove from initiative' : 'Add to initiative'}</button>
         </div>
       {:else}
         <strong>{selected.deceased ? '💀 ' : ''}{selected.name}</strong>

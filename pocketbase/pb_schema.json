@@ -734,6 +734,16 @@
         "maxSelect": 1
       },
       {
+        "id": "json_initiative",
+        "name": "initiative",
+        "type": "json",
+        "system": false,
+        "hidden": false,
+        "presentable": false,
+        "required": false,
+        "maxSize": 2000000
+      },
+      {
         "id": "autodate_created",
         "name": "created",
         "type": "autodate",
