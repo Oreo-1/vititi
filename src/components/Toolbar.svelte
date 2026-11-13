@@ -22,6 +22,7 @@
       <option value="circle">Full circle</option>
       <option value="half">Half circle</option>
       <option value="quarter">Quarter circle</option>
+      <option value="rect">Rectangle</option>
     </select>
   {/if}
 
@@ -33,7 +34,7 @@
     </select>
   {/if}
 
-  {#if ui.tool === 'aoe' || ui.tool === 'highlight'}
+  {#if ui.tool === 'aoe'}
     <input type="color" class="form-control form-control-sm form-control-color" bind:value={ui.color} title="Color" />
   {/if}
 

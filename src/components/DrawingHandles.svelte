@@ -1,7 +1,7 @@
 <script>
   // Resize handles + delete button for the selected drawing.
   // Rendered above tokens and fog so they stay reachable.
-  import { rectFromPoints } from '../lib/geometry.js';
+  import { rectFromPoints, isRect } from '../lib/geometry.js';
 
   let { d, zoom, onhandledown, ondelete } = $props();
 
@@ -10,7 +10,7 @@
 
   // Rect corners carry the opposite corner (ax, ay), which stays fixed while resizing.
   let handles = $derived.by(() => {
-    if (d.kind === 'aoe') return [{ x: d.x2, y: d.y2, cursor: 'pointer' }];
+    if (!isRect(d)) return [{ x: d.x2, y: d.y2, cursor: 'pointer' }];
     const { x, y, w, h } = rect;
     return [
       { x, y, ax: x + w, ay: y + h, cursor: 'nwse-resize' },
@@ -22,7 +22,7 @@
 
   // Outside the shape, so it can't land on a resize handle.
   let del = $derived(
-    d.kind === 'aoe'
+    !isRect(d)
       ? { x: d.x1 + radius, y: d.y1 - radius }
       : { x: rect.x + rect.w + 14 / zoom, y: rect.y - 14 / zoom }
   );

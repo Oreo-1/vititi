@@ -2,17 +2,17 @@
   import { auth, isDM } from '../lib/auth.svelte.js';
   import { game, canEditDrawing, canDeleteDrawing, updateDrawing, deleteDrawing, clearDrawings, currentMap } from '../lib/game.svelte.js';
   import { ui } from '../lib/ui.svelte.js';
-  import { pxToFt, rectFromPoints } from '../lib/geometry.js';
+  import { pxToFt, rectFromPoints, isRect } from '../lib/geometry.js';
 
   let map = $derived(currentMap());
 
   function describe(d) {
-    if (d.kind === 'aoe') {
+    if (!isRect(d)) {
       const ft = Math.round(pxToFt(map, Math.hypot(d.x2 - d.x1, d.y2 - d.y1)));
       return `AoE ${d.shape} ${ft} ft`;
     }
     const r = rectFromPoints(d.x1, d.y1, d.x2, d.y2);
-    return `Highlight ${Math.round(pxToFt(map, r.w))}×${Math.round(pxToFt(map, r.h))} ft`;
+    return `Rectangle ${Math.round(pxToFt(map, r.w))}×${Math.round(pxToFt(map, r.h))} ft`;
   }
 
   function label(d) {
@@ -55,7 +55,7 @@
 
 {#if map}
   <section class="mb-3">
-    <h2 class="h6">Areas &amp; highlights</h2>
+    <h2 class="h6">Areas of effect</h2>
     <ul class="list-group list-group-flush mb-2">
       {#each game.drawings as d (d.id)}
         <li class="list-group-item px-1 py-1 small d-flex align-items-center gap-1" class:active={ui.selectedDrawingId === d.id}>
@@ -75,7 +75,7 @@
           {/if}
         </li>
       {:else}
-        <li class="list-group-item small text-muted px-1">None. Use the AoE / Highlight tools.</li>
+        <li class="list-group-item small text-muted px-1">None. Use the Area of Effect tool.</li>
       {/each}
     </ul>
     <div class="btn-group btn-group-sm">

@@ -19,13 +19,16 @@ function hexOrigin(g) {
   // matches the SVG pattern in Grid.svelte: first hex centered at (size/2, r)
   return { x: g.ox + g.size / 2, y: g.oy + hexRadius(g.size) };
 }
-function pixelToAxial(g, x, y) {
+// Fractional axial coordinates (not rounded to a hex).
+function pixelToAxialFrac(g, x, y) {
   const r = hexRadius(g.size);
   const o = hexOrigin(g);
   const px = x - o.x, py = y - o.y;
-  const q = ((SQRT3 / 3) * px - (1 / 3) * py) / r;
-  const rr = ((2 / 3) * py) / r;
-  return axialRound(q, rr);
+  return { q: ((SQRT3 / 3) * px - (1 / 3) * py) / r, r: ((2 / 3) * py) / r };
+}
+function pixelToAxial(g, x, y) {
+  const a = pixelToAxialFrac(g, x, y);
+  return axialRound(a.q, a.r);
 }
 function axialRound(q, r) {
   const s = -q - r;
@@ -76,22 +79,26 @@ export function snapCorner(map, x, y) {
 /**
  * Distance in feet between two points.
  * rule: 'euclid' | '5e' (every diagonal = 1 square) | 'alt' (5-10-5 diagonals)
+ * Partial cells count too, so between cell centres it changes smoothly instead of
+ * in 5 ft steps; at cell centres it gives the usual grid distance.
  */
 export function distanceFt(map, a, b, rule = '5e') {
   const g = grid(map);
+  if (rule === 'euclid') return (Math.hypot(b.x - a.x, b.y - a.y) / g.size) * FT_PER_CELL;
   if (g.type === 'hex') {
-    const ha = pixelToAxial(g, a.x, a.y), hb = pixelToAxial(g, b.x, b.y);
+    const ha = pixelToAxialFrac(g, a.x, a.y), hb = pixelToAxialFrac(g, b.x, b.y);
     const dq = ha.q - hb.q, dr = ha.r - hb.r;
-    const cells = (Math.abs(dq) + Math.abs(dr) + Math.abs(dq + dr)) / 2;
-    if (rule === 'euclid') return (Math.hypot(b.x - a.x, b.y - a.y) / g.size) * FT_PER_CELL;
-    return cells * FT_PER_CELL;
+    return ((Math.abs(dq) + Math.abs(dr) + Math.abs(dq + dr)) / 2) * FT_PER_CELL;
   }
   const dx = Math.abs(b.x - a.x) / g.size, dy = Math.abs(b.y - a.y) / g.size;
-  if (rule === 'euclid') return Math.hypot(dx, dy) * FT_PER_CELL;
-  const cx = Math.round(dx), cy = Math.round(dy);
-  const diag = Math.min(cx, cy), straight = Math.max(cx, cy) - diag;
-  if (rule === 'alt') return (straight + diag + Math.floor(diag / 2)) * FT_PER_CELL;
-  return Math.max(cx, cy) * FT_PER_CELL; // 5e
+  const diag = Math.min(dx, dy), straight = Math.max(dx, dy) - diag;
+  if (rule === 'alt') {
+    // every second diagonal costs double; a partly crossed diagonal costs its share
+    const n = Math.floor(diag);
+    const diagCells = n + Math.floor(n / 2) + (diag - n) * (n % 2 === 1 ? 2 : 1);
+    return (straight + diagCells) * FT_PER_CELL;
+  }
+  return Math.max(dx, dy) * FT_PER_CELL; // 5e
 }
 
 /** Raw euclidean length in feet (used for AoE radius / rectangle sides). */
@@ -122,6 +129,9 @@ export function aoePath(shape, x1, y1, x2, y2, radiusOverride) {
   const ex = x1 + r * Math.cos(a1), ey = y1 + r * Math.sin(a1);
   return `M ${x1} ${y1} L ${sx} ${sy} A ${r} ${r} 0 0 1 ${ex} ${ey} Z`;
 }
+
+/** Rectangles have shape 'rect'; every other shape is a circle, half or quarter AoE. */
+export const isRect = (d) => d.shape === 'rect';
 
 export function rectFromPoints(x1, y1, x2, y2) {
   return { x: Math.min(x1, x2), y: Math.min(y1, y2), w: Math.abs(x2 - x1), h: Math.abs(y2 - y1) };

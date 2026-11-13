@@ -567,27 +567,13 @@
         "maxSelect": 1
       },
       {
-        "id": "select_kind",
-        "name": "kind",
-        "type": "select",
-        "system": false,
-        "hidden": false,
-        "presentable": false,
-        "required": true,
-        "maxSelect": 1,
-        "values": [
-          "aoe",
-          "highlight"
-        ]
-      },
-      {
         "id": "select_shape",
         "name": "shape",
         "type": "select",
         "system": false,
         "hidden": false,
         "presentable": false,
-        "required": false,
+        "required": true,
         "maxSelect": 1,
         "values": [
           "circle",

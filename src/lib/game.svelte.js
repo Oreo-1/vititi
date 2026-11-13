@@ -6,7 +6,7 @@ import { cellSize } from './geometry.js';
 export const game = $state({
   maps: [],
   tokens: [], // tokens on the map currently being viewed
-  drawings: [], // AoE + highlight shapes on the viewed map
+  drawings: [], // AoE shapes (circles and rectangles) on the viewed map
   state: null, // the single "game" record { active_map }
   viewMapId: '', // map this client is looking at (players: always the active map)
   ready: false,

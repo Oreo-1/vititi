@@ -32,7 +32,7 @@
   let selectedDrawing = $derived(game.drawings.find((d) => d.id === ui.selectedDrawingId));
 
   let action = null; // current drag interaction (non-reactive)
-  let preview = $state(null); // in-progress shape {kind, x1, y1, x2, y2}
+  let preview = $state(null); // in-progress shape {kind, shape?, x1, y1, x2, y2}
   let spaceDown = $state(false);
   let panning = $state(false);
 
@@ -75,7 +75,7 @@
   function snapFor(kind, p) {
     if (!ui.snap || !map) return p;
     if (kind === 'measure') return G.snapCenter(map, p.x, p.y);
-    return G.snapCorner(map, p.x, p.y); // aoe origin, highlight, fog
+    return G.snapCorner(map, p.x, p.y); // aoe origin, rectangle corners, fog
   }
 
   function onPointerDown(e) {
@@ -103,6 +103,7 @@
     const s = snapFor(kind, p);
     action = { kind, mode: ui.tool === 'fog-hide' ? 'hide' : 'reveal' };
     preview = { kind, x1: s.x, y1: s.y, x2: s.x, y2: s.y };
+    if (kind === 'aoe') preview.shape = ui.aoeShape; // fixed for this drag
   }
 
   function onTokenDown(e, t) {
@@ -130,7 +131,7 @@
   function onHandleDown(e, d, h) {
     if (e.button !== 0 || spaceDown) return;
     e.stopPropagation();
-    startDrawingEdit(e, d, d.kind === 'aoe' ? { mode: 'radius' } : { mode: 'corner', ax: h.ax, ay: h.ay });
+    startDrawingEdit(e, d, G.isRect(d) ? { mode: 'corner', ax: h.ax, ay: h.ay } : { mode: 'radius' });
   }
 
   function startDrawingEdit(e, d, edit) {
@@ -212,7 +213,8 @@
       return;
     }
     if (!preview) return;
-    const q = action.kind === 'aoe' ? aoeEnd(preview.x1, preview.y1, p) : snapFor(action.kind, p);
+    // circles snap their radius; rectangles snap the dragged corner, like fog
+    const q = action.kind === 'aoe' && !G.isRect(preview) ? aoeEnd(preview.x1, preview.y1, p) : snapFor(action.kind, p);
     preview.x2 = q.x;
     preview.y2 = q.y;
   }
@@ -250,9 +252,7 @@
 
     try {
       if (a.kind === 'aoe') {
-        await createDrawing({ kind: 'aoe', shape: ui.aoeShape, x1: pv.x1, y1: pv.y1, x2: pv.x2, y2: pv.y2, color: ui.color });
-      } else if (a.kind === 'highlight') {
-        await createDrawing({ kind: 'highlight', shape: 'rect', x1: pv.x1, y1: pv.y1, x2: pv.x2, y2: pv.y2, color: ui.color });
+        await createDrawing({ shape: pv.shape, x1: pv.x1, y1: pv.y1, x2: pv.x2, y2: pv.y2, color: ui.color });
       } else if (a.kind === 'fog') {
         await addFogOp(map, { type: a.mode, ...G.rectFromPoints(pv.x1, pv.y1, pv.x2, pv.y2) });
       }
@@ -354,7 +354,7 @@
           <Grid {map} zoom={cam.zoom} />
         {/if}
 
-        <!-- 3. persistent AoE / highlights -->
+        <!-- 3. persistent AoE shapes -->
         {#each game.drawings as d (d.id)}
           <Drawing
             {d}
@@ -383,7 +383,7 @@
           <Fog {map} {fog} {dm} />
         {/if}
 
-        <!-- 6. handles for the selected AoE / highlight -->
+        <!-- 6. handles for the selected AoE shape -->
         {#if selectedDrawing && ui.tool === 'select' && canEditDrawing(selectedDrawing)}
           <DrawingHandles
             d={selectedDrawing}
@@ -398,9 +398,7 @@
           {#if preview.kind === 'measure'}
             <Ruler a={{ x: preview.x1, y: preview.y1 }} b={{ x: preview.x2, y: preview.y2 }} {map} zoom={cam.zoom} rule={ui.measureRule} />
           {:else if preview.kind === 'aoe'}
-            <Drawing d={{ kind: 'aoe', shape: ui.aoeShape, color: ui.color, ...preview }} {map} zoom={cam.zoom} />
-          {:else if preview.kind === 'highlight'}
-            <Drawing d={{ kind: 'highlight', shape: 'rect', color: ui.color, ...preview }} {map} zoom={cam.zoom} />
+            <Drawing d={{ color: ui.color, ...preview }} {map} zoom={cam.zoom} />
           {:else if preview.kind === 'fog'}
             {@const r = G.rectFromPoints(preview.x1, preview.y1, preview.x2, preview.y2)}
             <rect x={r.x} y={r.y} width={r.w} height={r.h} fill="none" stroke={ui.tool === 'fog-hide' ? 'black' : 'white'} stroke-width={2 / cam.zoom} stroke-dasharray="{6 / cam.zoom} {4 / cam.zoom}" pointer-events="none" />

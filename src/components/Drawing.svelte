@@ -1,6 +1,6 @@
 <script>
-  // Renders an AoE (circle/half/quarter) or a rectangular highlight.
-  import { aoePath, rectFromPoints, pxToFt } from '../lib/geometry.js';
+  // Renders an AoE: circle/half/quarter, or a rectangle.
+  import { aoePath, rectFromPoints, pxToFt, isRect } from '../lib/geometry.js';
 
   let { d, map, zoom, selected = false, movable = false, onpointerdown } = $props();
 
@@ -14,7 +14,7 @@
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <g class="vtt-drawing" {onpointerdown} style:cursor={movable ? 'move' : onpointerdown ? 'pointer' : null}>
-  {#if d.kind === 'aoe'}
+  {#if !isRect(d)}
     <path d={aoePath(d.shape, d.x1, d.y1, d.x2, d.y2)} fill={d.color} fill-opacity="0.3" stroke={d.color} stroke-width={2 / zoom} stroke-dasharray={dash} />
     <circle cx={d.x1} cy={d.y1} r={3 / zoom} fill={d.color} />
     <text x={d.x1} y={d.y1 - 8 / zoom} text-anchor="middle" font-size={fs} fill="white" stroke="black" stroke-width={3 / zoom} paint-order="stroke">{prefix}{radiusFt} ft {shapeLabel}</text>
