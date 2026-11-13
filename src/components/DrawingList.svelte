@@ -2,7 +2,7 @@
   import { auth, isDM } from '../lib/auth.svelte.js';
   import { game, canEditDrawing, canDeleteDrawing, updateDrawing, deleteDrawing, clearDrawings, currentMap } from '../lib/game.svelte.js';
   import { ui } from '../lib/ui.svelte.js';
-  import { pxToFt, rectFromPoints, isRect } from '../lib/geometry.js';
+  import { pxToFt, isRect, rotationOf, rectSides } from '../lib/geometry.js';
 
   let map = $derived(currentMap());
 
@@ -11,8 +11,9 @@
       const ft = Math.round(pxToFt(map, Math.hypot(d.x2 - d.x1, d.y2 - d.y1)));
       return `AoE ${d.shape} ${ft} ft`;
     }
-    const r = rectFromPoints(d.x1, d.y1, d.x2, d.y2);
-    return `Rectangle ${Math.round(pxToFt(map, r.w))}×${Math.round(pxToFt(map, r.h))} ft`;
+    const r = rectSides(d);
+    const rot = rotationOf(d);
+    return `Rectangle ${Math.round(pxToFt(map, r.w))}×${Math.round(pxToFt(map, r.h))} ft${rot ? `, ${rot}°` : ''}`;
   }
 
   function label(d) {

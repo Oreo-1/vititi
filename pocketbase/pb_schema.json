@@ -631,6 +631,18 @@
         "onlyInt": false
       },
       {
+        "id": "number_rotation",
+        "name": "rotation",
+        "type": "number",
+        "system": false,
+        "hidden": false,
+        "presentable": false,
+        "required": false,
+        "min": null,
+        "max": null,
+        "onlyInt": false
+      },
+      {
         "id": "text_color",
         "name": "color",
         "type": "text",

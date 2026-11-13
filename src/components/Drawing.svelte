@@ -1,6 +1,6 @@
 <script>
   // Renders an AoE: circle/half/quarter, or a rectangle.
-  import { aoePath, rectFromPoints, pxToFt, isRect } from '../lib/geometry.js';
+  import { aoePath, rectFromPoints, pxToFt, isRect, rotationOf, rectSides } from '../lib/geometry.js';
 
   let { d, map, zoom, selected = false, movable = false, onpointerdown } = $props();
 
@@ -10,6 +10,8 @@
   let shapeLabel = $derived({ circle: 'radius', half: 'half-circle', quarter: 'quarter-circle' }[d.shape] || '');
   let dash = $derived(selected ? `${6 / zoom} ${4 / zoom}` : null);
   let prefix = $derived(d.name ? `${d.name} · ` : '');
+  let rot = $derived(rotationOf(d));
+  let sides = $derived(rectSides(d));
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -19,9 +21,9 @@
     <circle cx={d.x1} cy={d.y1} r={3 / zoom} fill={d.color} />
     <text x={d.x1} y={d.y1 - 8 / zoom} text-anchor="middle" font-size={fs} fill="white" stroke="black" stroke-width={3 / zoom} paint-order="stroke">{prefix}{radiusFt} ft {shapeLabel}</text>
   {:else}
-    <rect x={rect.x} y={rect.y} width={rect.w} height={rect.h} fill={d.color} fill-opacity="0.3" stroke={d.color} stroke-width={2 / zoom} stroke-dasharray={dash} />
+    <rect x={rect.x} y={rect.y} width={rect.w} height={rect.h} transform={rot ? `rotate(${rot} ${rect.x + rect.w / 2} ${rect.y + rect.h / 2})` : null} fill={d.color} fill-opacity="0.3" stroke={d.color} stroke-width={2 / zoom} stroke-dasharray={dash} />
     <text x={rect.x + rect.w / 2} y={rect.y + rect.h / 2} text-anchor="middle" dominant-baseline="central" font-size={fs} fill="white" stroke="black" stroke-width={3 / zoom} paint-order="stroke">
-      {prefix}{Math.round(pxToFt(map, rect.w))} × {Math.round(pxToFt(map, rect.h))} ft
+      {prefix}{Math.round(pxToFt(map, sides.w))} × {Math.round(pxToFt(map, sides.h))} ft
     </text>
   {/if}
 </g>

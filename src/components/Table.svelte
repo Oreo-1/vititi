@@ -125,13 +125,15 @@
     ui.selectedTokenId = '';
     if (!canEditDrawing(d)) return;
     const p = toWorld(e);
-    startDrawingEdit(e, d, { mode: 'move', dx: p.x - d.x1, dy: p.y - d.y1 });
+    const anchor = moveAnchor(d);
+    startDrawingEdit(e, d, { mode: 'move', anchor, dx: p.x - anchor.x, dy: p.y - anchor.y });
   }
 
   function onHandleDown(e, d, h) {
     if (e.button !== 0 || spaceDown) return;
     e.stopPropagation();
-    startDrawingEdit(e, d, G.isRect(d) ? { mode: 'corner', ax: h.ax, ay: h.ay } : { mode: 'radius' });
+    if (h.rotate) startDrawingEdit(e, d, { mode: 'rotate' });
+    else startDrawingEdit(e, d, G.isRect(d) ? { mode: 'corner', ax: h.ax, ay: h.ay } : { mode: 'radius' });
   }
 
   function startDrawingEdit(e, d, edit) {
@@ -140,7 +142,7 @@
     action = {
       kind: 'drawing',
       id: d.id,
-      orig: { x1: d.x1, y1: d.y1, x2: d.x2, y2: d.y2 },
+      orig: { x1: d.x1, y1: d.y1, x2: d.x2, y2: d.y2, rotation: G.rotationOf(d) },
       sx: e.clientX,
       sy: e.clientY,
       moved: false,
@@ -158,22 +160,54 @@
     return { x: ox + (dx / len) * rpx, y: oy + (dy / len) * rpx };
   }
 
+  // The point that snaps to the grid when moving a drawing: an AoE's origin, or the
+  // top-left of a rectangle's outline as drawn (so a rotated one still lines up).
+  function moveAnchor(d) {
+    if (!G.isRect(d)) return { x: d.x1, y: d.y1 };
+    const c = G.rectCorners(d);
+    return { x: Math.min(...c.map((p) => p.x)), y: Math.min(...c.map((p) => p.y)) };
+  }
+
+  // Snap a length in px to whole 5 ft steps, keeping its sign.
+  function snapLength(px) {
+    const ft = Math.max(G.FT_PER_CELL, Math.round(G.pxToFt(map, Math.abs(px)) / G.FT_PER_CELL) * G.FT_PER_CELL);
+    return Math.sign(px || 1) * G.ftToPx(map, ft);
+  }
+
+  const ROTATE_SNAP = 15; // degrees per step when Snap to grid is on
+
   // New coordinates for the drawing being edited, or null if the pointer would shrink it away.
   function editedCoords(a, p) {
-    const { x1, y1, x2, y2 } = a.orig;
+    const { x1, y1, x2, y2, rotation: rot } = a.orig;
     const min = G.ftToPx(map, 1);
     if (a.mode === 'move') {
       const s = snapFor('drawing', { x: p.x - a.dx, y: p.y - a.dy });
-      const dx = s.x - x1, dy = s.y - y1;
+      const dx = s.x - a.anchor.x, dy = s.y - a.anchor.y;
       return { x1: x1 + dx, y1: y1 + dy, x2: x2 + dx, y2: y2 + dy };
     }
     if (a.mode === 'radius') {
       const q = aoeEnd(x1, y1, p);
       return Math.hypot(q.x - x1, q.y - y1) < min ? null : { x2: q.x, y2: q.y };
     }
-    const q = snapFor('drawing', p);
-    if (Math.abs(q.x - a.ax) < min || Math.abs(q.y - a.ay) < min) return null;
-    return { x1: a.ax, y1: a.ay, x2: q.x, y2: q.y };
+    if (a.mode === 'rotate') {
+      // pointer angle around the centre; the handle starts straight up, at 0°
+      const cx = (x1 + x2) / 2, cy = (y1 + y2) / 2;
+      const deg = (Math.atan2(p.y - cy, p.x - cx) * 180) / Math.PI + 90;
+      const step = ui.snap ? ROTATE_SNAP : 1;
+      return { rotation: (((Math.round(deg / step) * step) % 360) + 360) % 360 };
+    }
+    // corner: the opposite corner (ax, ay) stays put. Work in the rectangle's own (unrotated) frame.
+    const A = { x: a.ax, y: a.ay };
+    const square = rot % 90 === 0; // its edges follow the grid, so the corner can snap to it
+    const q = square ? snapFor('drawing', p) : p;
+    let { x: w, y: h } = G.rotatePoint(q.x, q.y, A.x, A.y, -rot);
+    w -= A.x;
+    h -= A.y;
+    if (!square && ui.snap) { w = snapLength(w); h = snapLength(h); } // otherwise snap its size to 5 ft steps
+    if (Math.abs(w) < min || Math.abs(h) < min) return null;
+    const Q = G.rotatePoint(A.x + w, A.y + h, A.x, A.y, rot); // dragged corner, back in world space
+    const cx = (A.x + Q.x) / 2, cy = (A.y + Q.y) / 2;
+    return { x1: cx - Math.abs(w) / 2, y1: cy - Math.abs(h) / 2, x2: cx + Math.abs(w) / 2, y2: cy + Math.abs(h) / 2 };
   }
 
   function updateDrawingEdit(a, e) {

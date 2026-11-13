@@ -133,6 +133,33 @@ export function aoePath(shape, x1, y1, x2, y2, radiusOverride) {
 /** Rectangles have shape 'rect'; every other shape is a circle, half or quarter AoE. */
 export const isRect = (d) => d.shape === 'rect';
 
+/** A drawing's rotation in degrees, clockwise around its centre (only rectangles use it). */
+export const rotationOf = (d) => Number(d?.rotation) || 0;
+
+/** Rotate point (x, y) clockwise by deg around (cx, cy). Right angles are exact, so snapped shapes stay on the grid. */
+export function rotatePoint(x, y, cx, cy, deg) {
+  const rad = (deg * Math.PI) / 180;
+  let c = Math.cos(rad), s = Math.sin(rad);
+  if (deg % 90 === 0) { c = Math.round(c); s = Math.round(s); }
+  const dx = x - cx, dy = y - cy;
+  return { x: cx + dx * c - dy * s, y: cy + dx * s + dy * c };
+}
+
+/** World corners of a (possibly rotated) rectangle drawing: top-left, top-right, bottom-right, bottom-left before rotating. */
+export function rectCorners(d) {
+  const r = rectFromPoints(d.x1, d.y1, d.x2, d.y2);
+  const cx = r.x + r.w / 2, cy = r.y + r.h / 2, rot = rotationOf(d);
+  return [
+    [r.x, r.y], [r.x + r.w, r.y], [r.x + r.w, r.y + r.h], [r.x, r.y + r.h],
+  ].map(([x, y]) => rotatePoint(x, y, cx, cy, rot));
+}
+
+/** A rectangle's side lengths in px as seen on the map: swapped when it's turned nearer sideways than upright. */
+export function rectSides(d) {
+  const r = rectFromPoints(d.x1, d.y1, d.x2, d.y2);
+  return Math.round(rotationOf(d) / 90) % 2 ? { w: r.h, h: r.w } : { w: r.w, h: r.h };
+}
+
 export function rectFromPoints(x1, y1, x2, y2) {
   return { x: Math.min(x1, x2), y: Math.min(y1, y2), w: Math.abs(x2 - x1), h: Math.abs(y2 - y1) };
 }
