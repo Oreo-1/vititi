@@ -190,6 +190,8 @@ const drawingUpdates = createUpdateQueue('drawings');
 export const beginDrag = tokenUpdates.begin;
 export const endDrag = tokenUpdates.end;
 export const queueTokenUpdate = tokenUpdates.queue;
+// true while this browser is moving the token (its position is local, not from the server)
+export const isDraggingToken = tokenUpdates.isBusy;
 
 export function moveTokenLocal(id, x, y) {
   const t = game.tokens.find((t) => t.id === id);

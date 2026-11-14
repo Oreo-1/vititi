@@ -1,8 +1,28 @@
 <script>
   import { fileUrl } from '../lib/pb.js';
   import { cellSize } from '../lib/geometry.js';
+  import { isDraggingToken } from '../lib/game.svelte.js';
+  import { untrack } from 'svelte';
+  import { Tween } from 'svelte/motion';
+  import { linear } from 'svelte/easing';
 
   let { t, map, zoom, selected = false, movable = false, onpointerdown } = $props();
+
+  // Someone else's drag arrives as a few positions a second (one per server round trip),
+  // so glide between them instead of jumping. Our own drags stay instant.
+  const pos = new Tween(untrack(() => ({ x: t.x, y: t.y })));
+  let lastMove = 0;
+  $effect(() => {
+    const to = { x: t.x, y: t.y };
+    untrack(() => {
+      const now = performance.now();
+      const gap = now - lastMove;
+      lastMove = now;
+      // glide over about the time between updates, so the speed stays even
+      const duration = isDraggingToken(t.id) ? 0 : gap < 1000 ? Math.min(Math.max(gap, 50), 250) : 150;
+      pos.set(to, { duration, easing: linear });
+    });
+  });
 
   let r = $derived(((Number(t.size) || 1) * cellSize(map)) / 2);
   let url = $derived(t.image ? fileUrl(t, t.image) : '');
@@ -14,7 +34,7 @@
   class="vtt-token"
   class:token-hidden={t.hidden}
   class:token-deceased={t.deceased}
-  transform="translate({t.x} {t.y})"
+  transform="translate({pos.current.x} {pos.current.y})"
   {onpointerdown}
   style:cursor={movable ? 'grab' : 'default'}
 >
