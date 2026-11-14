@@ -201,6 +201,8 @@ export function moveTokenLocal(id, x, y) {
 export const beginDrawingDrag = drawingUpdates.begin;
 export const endDrawingDrag = drawingUpdates.end;
 export const queueDrawingUpdate = drawingUpdates.queue;
+// true while this browser is editing the drawing (its shape is local, not from the server)
+export const isDraggingDrawing = drawingUpdates.isBusy;
 
 export function moveDrawingLocal(id, coords) {
   const d = game.drawings.find((d) => d.id === id);

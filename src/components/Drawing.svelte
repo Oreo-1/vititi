@@ -1,8 +1,14 @@
 <script>
   // Renders an AoE: circle/half/quarter, or a rectangle.
   import { aoePath, rectFromPoints, pxToFt, isRect, rotationOf, rectSides } from '../lib/geometry.js';
+  import { isDraggingDrawing } from '../lib/game.svelte.js';
+  import { glideDrawing } from '../lib/glide.svelte.js';
 
-  let { d, map, zoom, selected = false, movable = false, onpointerdown } = $props();
+  let { d: rec, map, zoom, selected = false, movable = false, onpointerdown } = $props();
+
+  // others' edits (move, resize, rotate) glide between updates; ours stay instant
+  const shown = glideDrawing(() => rec, isDraggingDrawing);
+  let d = $derived(shown.current);
 
   let fs = $derived(14 / zoom);
   let rect = $derived(rectFromPoints(d.x1, d.y1, d.x2, d.y2));

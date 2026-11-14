@@ -420,12 +420,15 @@
 
         <!-- 6. handles for the selected AoE shape -->
         {#if selectedDrawing && ui.tool === 'select' && canEditDrawing(selectedDrawing)}
-          <DrawingHandles
-            d={selectedDrawing}
-            zoom={cam.zoom}
-            onhandledown={(e, h) => onHandleDown(e, selectedDrawing, h)}
-            ondelete={() => { const id = selectedDrawing.id; ui.selectedDrawingId = ''; deleteDrawing(id); }}
-          />
+          <!-- fresh per drawing, so its glide keeps in step with the drawing's own -->
+          {#key selectedDrawing.id}
+            <DrawingHandles
+              d={selectedDrawing}
+              zoom={cam.zoom}
+              onhandledown={(e, h) => onHandleDown(e, selectedDrawing, h)}
+              ondelete={() => { const id = selectedDrawing.id; ui.selectedDrawingId = ''; deleteDrawing(id); }}
+            />
+          {/key}
         {/if}
 
         <!-- 7. live previews -->

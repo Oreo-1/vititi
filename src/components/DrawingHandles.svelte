@@ -2,8 +2,14 @@
   // Resize handles, rotate handle + delete button for the selected drawing.
   // Rendered above tokens and fog so they stay reachable.
   import { rectFromPoints, isRect, rectCorners, rotationOf, rotatePoint } from '../lib/geometry.js';
+  import { isDraggingDrawing } from '../lib/game.svelte.js';
+  import { glideDrawing } from '../lib/glide.svelte.js';
 
-  let { d, zoom, onhandledown, ondelete } = $props();
+  let { d: rec, zoom, onhandledown, ondelete } = $props();
+
+  // follow the drawing as it glides (someone else editing it)
+  const shown = glideDrawing(() => rec, isDraggingDrawing);
+  let d = $derived(shown.current);
 
   let rect = $derived(rectFromPoints(d.x1, d.y1, d.x2, d.y2));
   let radius = $derived(Math.hypot(d.x2 - d.x1, d.y2 - d.y1));
