@@ -3,7 +3,7 @@ export const ui = $state({
   tool: 'select', // select | measure | aoe | fog-reveal | fog-hide
   aoeShape: 'circle', // circle | half | quarter | rect (saved as the drawing's shape)
   snap: false,
-  measureRule: '5e', // 5e | alt | euclid
+  measureRule: 'euclid', // 5e | alt | euclid
   color: '#ff3b30',
   selectedTokenId: '',
   selectedDrawingId: '',

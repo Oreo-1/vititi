@@ -28,9 +28,9 @@
 
   {#if ui.tool === 'measure'}
     <select class="form-select form-select-sm w-auto" bind:value={ui.measureRule} title="Diagonal rule">
-      <option value="5e">Diagonals = 5 ft</option>
-      <option value="alt">Diagonals 5/10/5</option>
       <option value="euclid">Euclidean</option>
+      <option value="5e">Diagonals = 5 ft (5e)</option>
+      <option value="alt">Diagonals 5/10/5</option>
     </select>
   {/if}
 
