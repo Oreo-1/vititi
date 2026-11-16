@@ -1,6 +1,6 @@
 <script>
   import { isDM } from '../lib/auth.svelte.js';
-  import { game, currentMap, createToken, cloneToken, updateToken, deleteToken, initiativeOrder, addToInitiative, removeFromInitiative, sortByName } from '../lib/game.svelte.js';
+  import { game, currentMap, createToken, cloneToken, updateToken, deleteToken, initiativeOrder, addToInitiative, removeFromInitiative, sortByName, canMoveToken } from '../lib/game.svelte.js';
   import { ui } from '../lib/ui.svelte.js';
   import { snapToken } from '../lib/geometry.js';
 
@@ -39,6 +39,15 @@
 
   function patch(data) {
     updateToken(selected.id, data).catch((e) => alert(e?.message || e));
+  }
+
+  // ---- assigned players: only they (and the DM) can move the token; nobody assigned = everyone
+  let owners = $derived(selected?.owners || []);
+  let ownerNames = $derived(game.players.filter((p) => owners.includes(p.id)).map((p) => p.name).join(', '));
+
+  function setOwner(userId, on) {
+    // add/remove just this one on the server, so quick clicks can't undo each other
+    patch({ [on ? 'owners+' : 'owners-']: userId });
   }
 
   async function moveToMap(mapId) {
@@ -101,6 +110,27 @@
           <label class="form-check-label" for="tdead">💀 Fallen</label>
         </div>
         <div class="mb-1">
+          <div class="form-label small mb-0">👤 Assigned players</div>
+          {#if game.players.length}
+            <div class="border rounded px-2 py-1" style="max-height: 9rem; overflow-y: auto">
+              {#each game.players as p (p.id)}
+                <div class="form-check mb-0">
+                  <input class="form-check-input" type="checkbox" id="towner-{p.id}" checked={owners.includes(p.id)}
+                    onchange={(e) => setOwner(p.id, e.currentTarget.checked)} />
+                  <label class="form-check-label small" for="towner-{p.id}">{p.name || '(unnamed)'}</label>
+                </div>
+              {/each}
+            </div>
+            <div class="form-text mt-0">
+              {#if selected.dm_only}🔒 is on, so only you can move it.
+              {:else if ownerNames}Only {ownerNames} (and you) can move it.
+              {:else}Nobody assigned: any player can move it.{/if}
+            </div>
+          {:else}
+            <div class="small text-muted">No player accounts yet.</div>
+          {/if}
+        </div>
+        <div class="mb-1">
           <label class="form-label small mb-0" for="tmap">Move to map</label>
           <select id="tmap" class="form-select form-select-sm" value="" onchange={(e) => moveToMap(e.currentTarget.value)}>
             <option value="" disabled>Choose…</option>
@@ -121,7 +151,7 @@
         </div>
       {:else}
         <strong>{selected.deceased ? '💀 ' : ''}{selected.name}</strong>
-        <div class="small text-muted">{selected.dm_only ? 'Only the DM can move this token.' : 'Drag to move.'}</div>
+        <div class="small text-muted">{selected.dm_only ? 'Only the DM can move this token.' : canMoveToken(selected) ? 'Drag to move.' : "You can't move this token."}</div>
       {/if}
     </div>
   {/if}
@@ -130,7 +160,7 @@
     {#each list as t (t.id)}
       <li class="list-group-item list-group-item-action px-1 py-1 small" class:active={ui.selectedTokenId === t.id}>
         <button class="btn btn-link btn-sm p-0 text-reset text-decoration-none" onclick={() => (ui.selectedTokenId = t.id)}>
-          {t.hidden ? '👻 ' : ''}{t.dm_only ? '🔒 ' : ''}{t.deceased ? '💀 ' : ''}{t.name || '(unnamed)'}
+          {t.hidden ? '👻 ' : ''}{t.dm_only ? '🔒 ' : ''}{dm && t.owners?.length ? '👤 ' : ''}{t.deceased ? '💀 ' : ''}{t.name || '(unnamed)'}
         </button>
       </li>
     {:else}

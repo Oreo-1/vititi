@@ -31,7 +31,7 @@ The app uses its **own** auth collection, `vititi_users`, and leaves PocketBase'
 
 **Option B: migration.** Copy `docker/pocketbase/pb_migrations/1793400001_import_vititi_schema.js` into the `pb_migrations/` folder next to your `pocketbase` executable and start it with `PB_SCHEMA_FILE=/path/to/pb_schema.json ./pocketbase serve` (or run `./pocketbase migrate up`). It imports `pocketbase/pb_schema.json` once, on a fresh database.
 
-**Updating an existing database.** A newer version of the app can need new fields, and `pb_schema.json` is only imported automatically on a fresh database. For any existing database, Docker included, repeat Option A in the dashboard. Without the new fields, those values aren't saved: for example, renaming an AoE would appear to do nothing, a rotated rectangle would turn back after a reload, and the initiative order would be lost on reload. The import also removes fields the app no longer uses, with their data: `kind` on `drawings` is gone, because `shape` already tells circles and rectangles apart.
+**Updating an existing database.** A newer version of the app can need new fields, and `pb_schema.json` is only imported automatically on a fresh database. For any existing database, Docker included, repeat Option A in the dashboard. Without the new fields, those values aren't saved: for example, renaming an AoE would appear to do nothing, a rotated rectangle would turn back after a reload, the initiative order would be lost on reload, and assigning players to a token would not stick. The import also removes fields the app no longer uses, with their data: `kind` on `drawings` is gone, because `shape` already tells circles and rectangles apart.
 
 **What gets created** (for reference, or if you'd rather build it by hand):
 
@@ -39,7 +39,7 @@ The app uses its **own** auth collection, `vititi_users`, and leaves PocketBase'
 |---|---|
 | `vititi_users` (auth) | `name` text (required, unique index, set as the only *identity field* under Options → Password auth), `role` select (`dm`,`player`). The built-in `email` field is set to not required. |
 | `maps` | `name` text (required), `image` file (single, images, max ~50MB), `width` `height` numbers, `grid_type` select (`square`,`hex`), `grid_size` `grid_offset_x` `grid_offset_y` numbers, `grid_visible` bool, `fog` json, `created` autodate |
-| `tokens` | `map` relation→maps (single, required, cascade delete), `name` text, `image` file, `x` `y` `size` numbers, `hidden` bool, `dm_only` bool, `deceased` bool, `created` autodate |
+| `tokens` | `map` relation→maps (single, required, cascade delete), `name` text, `image` file, `x` `y` `size` numbers, `hidden` bool, `dm_only` bool, `deceased` bool, `owners` relation→vititi_users (multiple, optional: the players assigned to it), `created` autodate |
 | `drawings` | `map` relation→maps (cascade), `author` relation→vititi_users, `shape` select (`circle`,`half`,`quarter`,`rect`, required), `x1` `y1` `x2` `y2` numbers, `rotation` number (degrees, rectangles only), `color` text, `name` text (optional, max 50), `created` autodate |
 | `game` | `active_map` relation→maps (single, not cascade), `initiative` json (turn order), `created` autodate |
 
@@ -53,9 +53,9 @@ API rules (A = `@request.auth.id != ""`, DM = `@request.auth.role = "dm"`):
 | drawings | A | `@request.auth.id != "" && @request.body.author = @request.auth.id` | DM, or the author (who can't change `author` or `map`) | `author = @request.auth.id \|\| @request.auth.role = "dm"` |
 | game | A | DM | DM | DM |
 
-tokens update rule (players may only change x/y of unlocked, visible tokens):
+tokens update rule (players may only change x/y of unlocked, visible tokens, and only if nobody is assigned or they are one of the assigned players):
 ```
-@request.auth.role = "dm" || (@request.auth.id != "" && dm_only = false && hidden = false && @request.body.map:isset = false && @request.body.name:isset = false && @request.body.image:isset = false && @request.body.size:isset = false && @request.body.hidden:isset = false && @request.body.dm_only:isset = false && @request.body.deceased:isset = false)
+@request.auth.role = "dm" || (@request.auth.id != "" && dm_only = false && hidden = false && @request.body.map:isset = false && @request.body.name:isset = false && @request.body.image:isset = false && @request.body.size:isset = false && @request.body.hidden:isset = false && @request.body.dm_only:isset = false && @request.body.deceased:isset = false && @request.body.owners:isset = false && (owners:length = 0 || owners.id ?= @request.auth.id))
 ```
 
 ### 3. Create the DM account
@@ -79,7 +79,8 @@ docker compose up -d --build
 **DM**
 - **Maps:** drop or upload images in the sidebar. "View" previews a map for you only. **"Move players here"** switches every player to that map. ✏️ renames a map: Enter or clicking away saves, Esc cancels.
 - **Map settings:** grid type (square/hex), cell size in px (1 cell = 5 ft), and X/Y offset so the grid lines up with the map art. Changes sync live.
-- **Tokens:** use the "Add token" form, or drag image files straight onto the map. Select a token to rename or resize it, toggle 👻 hidden, 🔒 DM-only or 💀 deceased (greyed out with a skull badge), move it to another map, clone it, or delete it. A clone copies the token's name, image, size and toggles, and appears next to the original.
+- **Tokens:** use the "Add token" form, or drag image files straight onto the map. Select a token to rename or resize it, toggle 👻 hidden, 🔒 DM-only or 💀 deceased (greyed out with a skull badge), move it to another map, clone it, or delete it. A clone copies the token's name, image, size, toggles and assigned players, and appears next to the original.
+- **Assigned players:** tick players under 👤 Assigned players on a selected token, and only they (and the DM) can move it. Tick several to share it. With nobody ticked, any player can move it, as before. 🔒 DM-only still wins over assignments. Players see no difference, apart from being unable to drag tokens assigned to others. In the DM's token list, assigned tokens show 👤.
 - **Fog:** turn it on in Map settings, then drag rectangles with the **Reveal Fog** and **Hide Fog** tools. "Cover all" and "Reveal all" reset it. The DM sees fog at 50% opacity; players see it solid. Fog edges are softened, fading inward from the edge of each revealed area; change `FOG_SOFTNESS` in `src/lib/geometry.js` to adjust this. If a player drops a token with its center in the fog, it goes back to where the drag started. The DM can place tokens anywhere.
 - **Initiative:** the tracker in the bottom-left corner of the map holds the turn order, with whoever is acting now at the top. Add tokens with **+ Add all** (every token on the viewed map) or **Add to initiative** on a selected token. **Next ▶** sends the current token to the back of the queue. Drag an entry up or down to move its turn earlier or later (action advance or delay), and × removes it. Deleted tokens drop out automatically. Players see the same order live, without hidden tokens, but can't change it. ▾ collapses the tracker for you only.
 

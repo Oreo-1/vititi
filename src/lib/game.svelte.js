@@ -1,6 +1,6 @@
 // Central client-side state + PocketBase realtime sync.
 import { pb, fileUrl } from './pb.js';
-import { auth, isDM } from './auth.svelte.js';
+import { auth, isDM, USERS } from './auth.svelte.js';
 import { cellSize } from './geometry.js';
 
 export const game = $state({
@@ -8,6 +8,7 @@ export const game = $state({
   tokens: [], // tokens on the map currently being viewed
   drawings: [], // AoE shapes (circles and rectangles) on the viewed map
   state: null, // the single "game" record { active_map }
+  players: [], // player accounts, A–Z (loaded for the DM only, to assign tokens)
   viewMapId: '', // map this client is looking at (players: always the active map)
   ready: false,
   error: '',
@@ -35,6 +36,7 @@ export async function startSync() {
     unsubs.push(await pb.collection('game').subscribe('*', onGameEvent));
     unsubs.push(await pb.collection('tokens').subscribe('*', onTokenEvent));
     unsubs.push(await pb.collection('drawings').subscribe('*', onDrawingEvent));
+    if (isDM()) await loadPlayers();
 
     // Players only ever see the active map; the DM falls back to the first map.
     const active = game.state?.active_map || '';
@@ -55,6 +57,7 @@ export async function stopSync() {
   game.tokens = [];
   game.drawings = [];
   game.state = null;
+  game.players = [];
   game.viewMapId = '';
   game.ready = false;
 }
@@ -109,6 +112,23 @@ function onGameEvent({ action, record }) {
   game.state = record;
   // Players always follow the active map. The DM keeps whatever they're looking at.
   if (!isDM() && record.active_map !== prevActive) setViewMap(record.active_map);
+}
+
+// Player accounts, for assigning tokens. Not essential: if this fails the table still
+// loads, and the token panel just has nobody to assign.
+async function loadPlayers() {
+  try {
+    game.players = sortByName(await pb.collection(USERS).getFullList({ filter: 'role = "player"' }));
+    unsubs.push(await pb.collection(USERS).subscribe('*', onUserEvent));
+  } catch (e) {
+    console.error('could not load the player list', e);
+  }
+}
+
+// new registrations, renames, and promotions to DM (which leave the player list)
+function onUserEvent({ action, record }) {
+  remove(game.players, record.id);
+  if (action !== 'delete' && record.role === 'player') game.players = sortByName([...game.players, record]);
 }
 
 function onTokenEvent({ action, record }) {
@@ -214,7 +234,10 @@ export function moveDrawingLocal(id, coords) {
 export function canMoveToken(token) {
   if (!auth.user) return false;
   if (isDM()) return true;
-  return !token.dm_only && !token.hidden;
+  if (token.dm_only || token.hidden) return false;
+  // assigned tokens move only for their players; unassigned ones for everyone
+  const owners = token.owners || [];
+  return !owners.length || owners.includes(auth.user.id);
 }
 
 export function canEditDrawing(d) {
@@ -271,7 +294,7 @@ export async function setActiveMap(mapId) {
   else game.state = await pb.collection('game').update(game.state.id, { active_map: mapId });
 }
 
-export async function createToken({ name, file, x, y, size = 1, hidden = false, dm_only = false, deceased = false, mapId }) {
+export async function createToken({ name, file, x, y, size = 1, hidden = false, dm_only = false, deceased = false, owners = [], mapId }) {
   const fd = new FormData();
   fd.append('map', mapId || game.viewMapId);
   fd.append('name', name || 'Token');
@@ -282,6 +305,7 @@ export async function createToken({ name, file, x, y, size = 1, hidden = false, 
   fd.append('hidden', hidden);
   fd.append('dm_only', dm_only);
   fd.append('deceased', deceased);
+  for (const id of owners) fd.append('owners', id);
   return pb.collection('tokens').create(fd);
 }
 
@@ -309,6 +333,7 @@ export async function cloneToken(token) {
     hidden: token.hidden,
     dm_only: token.dm_only,
     deceased: token.deceased,
+    owners: token.owners || [],
     mapId: token.map,
   });
 }

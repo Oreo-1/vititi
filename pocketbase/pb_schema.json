@@ -360,7 +360,7 @@
     "listRule": "@request.auth.id != \"\"",
     "viewRule": "@request.auth.id != \"\"",
     "createRule": "@request.auth.role = \"dm\"",
-    "updateRule": "@request.auth.role = \"dm\" || (@request.auth.id != \"\" && dm_only = false && hidden = false && @request.body.map:isset = false && @request.body.name:isset = false && @request.body.image:isset = false && @request.body.size:isset = false && @request.body.hidden:isset = false && @request.body.dm_only:isset = false && @request.body.deceased:isset = false)",
+    "updateRule": "@request.auth.role = \"dm\" || (@request.auth.id != \"\" && dm_only = false && hidden = false && @request.body.map:isset = false && @request.body.name:isset = false && @request.body.image:isset = false && @request.body.size:isset = false && @request.body.hidden:isset = false && @request.body.dm_only:isset = false && @request.body.deceased:isset = false && @request.body.owners:isset = false && (owners:length = 0 || owners.id ?= @request.auth.id))",
     "deleteRule": "@request.auth.role = \"dm\"",
     "fields": [
       {
@@ -489,6 +489,19 @@
         "hidden": false,
         "presentable": false,
         "required": false
+      },
+      {
+        "id": "relation_owners",
+        "name": "owners",
+        "type": "relation",
+        "system": false,
+        "hidden": false,
+        "presentable": false,
+        "required": false,
+        "collectionId": "pbc_vtt_users",
+        "cascadeDelete": false,
+        "minSelect": 0,
+        "maxSelect": 999
       },
       {
         "id": "autodate_created",
