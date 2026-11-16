@@ -360,7 +360,7 @@
     "listRule": "@request.auth.id != \"\"",
     "viewRule": "@request.auth.id != \"\"",
     "createRule": "@request.auth.role = \"dm\"",
-    "updateRule": "@request.auth.role = \"dm\" || (@request.auth.id != \"\" && dm_only = false && hidden = false && @request.body.map:isset = false && @request.body.name:isset = false && @request.body.image:isset = false && @request.body.size:isset = false && @request.body.hidden:isset = false && @request.body.dm_only:isset = false && @request.body.deceased:isset = false && @request.body.owners:isset = false && (owners:length = 0 || owners.id ?= @request.auth.id))",
+    "updateRule": "@request.auth.role = \"dm\" || (@request.auth.id != \"\" && hidden = false && @request.body.map:isset = false && @request.body.size:isset = false && @request.body.hidden:isset = false && @request.body.dm_only:isset = false && @request.body.deceased:isset = false && @request.body.owners:isset = false && ((@request.body.name:isset = false && @request.body.image:isset = false) || owners.id ?= @request.auth.id) && ((@request.body.x:isset = false && @request.body.y:isset = false) || (dm_only = false && (owners:length = 0 || owners.id ?= @request.auth.id))))",
     "deleteRule": "@request.auth.role = \"dm\"",
     "fields": [
       {

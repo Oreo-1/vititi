@@ -1,6 +1,6 @@
 <script>
   import { isDM } from '../lib/auth.svelte.js';
-  import { game, currentMap, createToken, cloneToken, updateToken, deleteToken, initiativeOrder, addToInitiative, removeFromInitiative, sortByName, canMoveToken } from '../lib/game.svelte.js';
+  import { game, currentMap, createToken, cloneToken, updateToken, deleteToken, initiativeOrder, addToInitiative, removeFromInitiative, sortByName, canMoveToken, canRestyleToken } from '../lib/game.svelte.js';
   import { ui } from '../lib/ui.svelte.js';
   import { snapToken } from '../lib/geometry.js';
 
@@ -39,6 +39,14 @@
 
   function patch(data) {
     updateToken(selected.id, data).catch((e) => alert(e?.message || e));
+  }
+
+  function replaceImage(e) {
+    const f = e.currentTarget.files[0];
+    if (!f) return;
+    const fd = new FormData();
+    fd.append('image', f);
+    patch(fd);
   }
 
   // ---- assigned players: only they (and the DM) can move the token; nobody assigned = everyone
@@ -82,16 +90,27 @@
   }
 </script>
 
+<!-- shared by the DM and the token's assigned players -->
+{#snippet nameField()}
+  <div class="mb-1">
+    <label class="form-label small mb-0" for="tname">Name</label>
+    <input id="tname" class="form-control form-control-sm" value={selected.name} onchange={(e) => patch({ name: e.currentTarget.value })} />
+  </div>
+{/snippet}
+{#snippet imageField()}
+  <div class="mb-1">
+    <label class="form-label small mb-0" for="timg">Replace image</label>
+    <input id="timg" type="file" accept="image/*" class="form-control form-control-sm" onchange={replaceImage} />
+  </div>
+{/snippet}
+
 <section class="mb-3">
   <h2 class="h6">Tokens</h2>
 
   {#if selected}
     <div class="card card-body p-2 mb-2">
       {#if dm}
-        <div class="mb-1">
-          <label class="form-label small mb-0" for="tname">Name</label>
-          <input id="tname" class="form-control form-control-sm" value={selected.name} onchange={(e) => patch({ name: e.currentTarget.value })} />
-        </div>
+        {@render nameField()}
         <div class="mb-1">
           <label class="form-label small mb-0" for="tsize">Size (cells)</label>
           <input id="tsize" type="number" min="0.25" step="0.25" class="form-control form-control-sm" value={selected.size}
@@ -122,8 +141,9 @@
               {/each}
             </div>
             <div class="form-text mt-0">
-              {#if selected.dm_only}🔒 is on, so only you can move it.
-              {:else if ownerNames}Only {ownerNames} (and you) can move it.
+              {#if selected.dm_only && ownerNames}🔒 is on, so only you can move it. {ownerNames} can still rename it and change its image.
+              {:else if selected.dm_only}🔒 is on, so only you can move it.
+              {:else if ownerNames}Only {ownerNames} (and you) can move it, rename it or change its image.
               {:else}Nobody assigned: any player can move it.{/if}
             </div>
           {:else}
@@ -139,16 +159,17 @@
             {/each}
           </select>
         </div>
-        <div class="mb-1">
-          <label class="form-label small mb-0" for="timg">Replace image</label>
-          <input id="timg" type="file" accept="image/*" class="form-control form-control-sm"
-            onchange={(e) => { const f = e.currentTarget.files[0]; if (f) { const fd = new FormData(); fd.append('image', f); patch(fd); } }} />
-        </div>
+        {@render imageField()}
         <div class="d-flex flex-wrap gap-1">
           <button class="btn btn-sm btn-outline-secondary" onclick={clone} disabled={cloning}>Clone token</button>
           <button class="btn btn-sm btn-outline-danger" onclick={remove}>Delete token</button>
           <button class="btn btn-sm btn-outline-primary" onclick={toggleInitiative}>{inInitiative ? 'Remove from initiative' : 'Add to initiative'}</button>
         </div>
+      {:else if canRestyleToken(selected)}
+        <!-- an assigned player: their own character, so they can rename it and change its picture -->
+        {@render nameField()}
+        {@render imageField()}
+        <div class="small text-muted">{selected.deceased ? '💀 Fallen. ' : ''}{selected.dm_only ? 'Only the DM can move this token.' : 'Drag to move.'}</div>
       {:else}
         <strong>{selected.deceased ? '💀 ' : ''}{selected.name}</strong>
         <div class="small text-muted">{selected.dm_only ? 'Only the DM can move this token.' : canMoveToken(selected) ? 'Drag to move.' : "You can't move this token."}</div>

@@ -240,6 +240,14 @@ export function canMoveToken(token) {
   return !owners.length || owners.includes(auth.user.id);
 }
 
+// Renaming and replacing the image: the DM, and the players assigned to the token.
+// Unlike moving, 🔒 DM-only doesn't stop them (it only locks movement).
+export function canRestyleToken(token) {
+  if (!auth.user) return false;
+  if (isDM()) return true;
+  return !token.hidden && (token.owners || []).includes(auth.user.id);
+}
+
 export function canEditDrawing(d) {
   return isDM() || d.author === auth.user?.id;
 }
