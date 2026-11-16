@@ -8,7 +8,7 @@ export const game = $state({
   tokens: [], // tokens on the map currently being viewed
   drawings: [], // AoE shapes (circles and rectangles) on the viewed map
   state: null, // the single "game" record { active_map }
-  players: [], // player accounts, A–Z (loaded for the DM only, to assign tokens)
+  players: [], // player accounts, A–Z (for assigning tokens, and naming who can move one)
   viewMapId: '', // map this client is looking at (players: always the active map)
   ready: false,
   error: '',
@@ -36,7 +36,7 @@ export async function startSync() {
     unsubs.push(await pb.collection('game').subscribe('*', onGameEvent));
     unsubs.push(await pb.collection('tokens').subscribe('*', onTokenEvent));
     unsubs.push(await pb.collection('drawings').subscribe('*', onDrawingEvent));
-    if (isDM()) await loadPlayers();
+    await loadPlayers();
 
     // Players only ever see the active map; the DM falls back to the first map.
     const active = game.state?.active_map || '';
@@ -114,8 +114,8 @@ function onGameEvent({ action, record }) {
   if (!isDM() && record.active_map !== prevActive) setViewMap(record.active_map);
 }
 
-// Player accounts, for assigning tokens. Not essential: if this fails the table still
-// loads, and the token panel just has nobody to assign.
+// Player accounts: the DM assigns tokens to them, and players see who can move a token.
+// Not essential: if this fails the table still loads, just without the names.
 async function loadPlayers() {
   try {
     game.players = sortByName(await pb.collection(USERS).getFullList({ filter: 'role = "player"' }));
@@ -234,14 +234,13 @@ export function moveDrawingLocal(id, coords) {
 export function canMoveToken(token) {
   if (!auth.user) return false;
   if (isDM()) return true;
-  if (token.dm_only || token.hidden) return false;
-  // assigned tokens move only for their players; unassigned ones for everyone
-  const owners = token.owners || [];
-  return !owners.length || owners.includes(auth.user.id);
+  if (token.hidden) return false;
+  // only the DM by default; players when they're assigned, or when anyone may move it
+  return !!token.anyone_can_move || (token.owners || []).includes(auth.user.id);
 }
 
-// Renaming and replacing the image: the DM, and the players assigned to the token.
-// Unlike moving, 🔒 DM-only doesn't stop them (it only locks movement).
+// Renaming and replacing the image: the DM, and the players assigned to the token
+// ("Anyone can move" doesn't extend to this).
 export function canRestyleToken(token) {
   if (!auth.user) return false;
   if (isDM()) return true;
@@ -302,7 +301,7 @@ export async function setActiveMap(mapId) {
   else game.state = await pb.collection('game').update(game.state.id, { active_map: mapId });
 }
 
-export async function createToken({ name, file, x, y, size = 1, hidden = false, dm_only = false, deceased = false, owners = [], mapId }) {
+export async function createToken({ name, file, x, y, size = 1, hidden = false, anyone_can_move = false, deceased = false, owners = [], mapId }) {
   const fd = new FormData();
   fd.append('map', mapId || game.viewMapId);
   fd.append('name', name || 'Token');
@@ -311,7 +310,7 @@ export async function createToken({ name, file, x, y, size = 1, hidden = false, 
   fd.append('y', y);
   fd.append('size', size);
   fd.append('hidden', hidden);
-  fd.append('dm_only', dm_only);
+  fd.append('anyone_can_move', anyone_can_move);
   fd.append('deceased', deceased);
   for (const id of owners) fd.append('owners', id);
   return pb.collection('tokens').create(fd);
@@ -339,7 +338,7 @@ export async function cloneToken(token) {
     y: token.y,
     size: token.size,
     hidden: token.hidden,
-    dm_only: token.dm_only,
+    anyone_can_move: !!token.anyone_can_move,
     deceased: token.deceased,
     owners: token.owners || [],
     mapId: token.map,

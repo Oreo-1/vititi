@@ -16,7 +16,7 @@
   }
 
   // ---- new token form ----
-  let nt = $state({ name: '', size: 1, hidden: false, dm_only: false });
+  let nt = $state({ name: '', size: 1, hidden: false, anyone_can_move: false });
   let fileInput = $state();
   let busy = $state(false);
 
@@ -28,7 +28,7 @@
       const c = snapToken(map, (map.width || 1000) / 2, (map.height || 1000) / 2, nt.size);
       const rec = await createToken({ ...nt, file: fileInput.files[0], x: c.x, y: c.y, mapId: map.id });
       ui.selectedTokenId = rec.id;
-      nt = { name: '', size: 1, hidden: false, dm_only: false };
+      nt = { name: '', size: 1, hidden: false, anyone_can_move: false };
       fileInput.value = '';
     } catch (err) {
       alert(err?.message || err);
@@ -49,7 +49,8 @@
     patch(fd);
   }
 
-  // ---- assigned players: only they (and the DM) can move the token; nobody assigned = everyone
+  // ---- assigned players: they (and the DM) can move the token; nobody assigned = only the DM,
+  // unless "Anyone can move" is on
   let owners = $derived(selected?.owners || []);
   let ownerNames = $derived(game.players.filter((p) => owners.includes(p.id)).map((p) => p.name).join(', '));
 
@@ -121,8 +122,8 @@
           <label class="form-check-label" for="thid">👻 Hidden from players</label>
         </div>
         <div class="form-check form-switch">
-          <input class="form-check-input" type="checkbox" id="tdm" checked={selected.dm_only} onchange={(e) => patch({ dm_only: e.currentTarget.checked })} />
-          <label class="form-check-label" for="tdm">🔒 Only DM can move</label>
+          <input class="form-check-input" type="checkbox" id="tanyone" checked={!!selected.anyone_can_move} onchange={(e) => patch({ anyone_can_move: e.currentTarget.checked })} />
+          <label class="form-check-label" for="tanyone">🔓 Anyone can move</label>
         </div>
         <div class="form-check form-switch">
           <input class="form-check-input" type="checkbox" id="tdead" checked={selected.deceased} onchange={(e) => patch({ deceased: e.currentTarget.checked })} />
@@ -141,10 +142,10 @@
               {/each}
             </div>
             <div class="form-text mt-0">
-              {#if selected.dm_only && ownerNames}🔒 is on, so only you can move it. {ownerNames} can still rename it and change its image.
-              {:else if selected.dm_only}🔒 is on, so only you can move it.
+              {#if selected.anyone_can_move && ownerNames}🔓 Any player can move it. Only {ownerNames} can rename it and change its image.
+              {:else if selected.anyone_can_move}🔓 Any player can move it.
               {:else if ownerNames}Only {ownerNames} (and you) can move it, rename it or change its image.
-              {:else}Nobody assigned: any player can move it.{/if}
+              {:else}Nobody assigned: only you can move it.{/if}
             </div>
           {:else}
             <div class="small text-muted">No player accounts yet.</div>
@@ -169,10 +170,10 @@
         <!-- an assigned player: their own character, so they can rename it and change its picture -->
         {@render nameField()}
         {@render imageField()}
-        <div class="small text-muted">{selected.deceased ? '💀 Fallen. ' : ''}{selected.dm_only ? 'Only the DM can move this token.' : 'Drag to move.'}</div>
+        <div class="small text-muted">{selected.deceased ? '💀 Fallen. ' : ''}Drag to move.</div>
       {:else}
         <strong>{selected.deceased ? '💀 ' : ''}{selected.name}</strong>
-        <div class="small text-muted">{selected.dm_only ? 'Only the DM can move this token.' : canMoveToken(selected) ? 'Drag to move.' : "You can't move this token."}</div>
+        <div class="small text-muted">{canMoveToken(selected) ? 'Drag to move.' : ownerNames ? `Only ${ownerNames} (& the DM) can move this token.` : 'Only the DM can move this token.'}</div>
       {/if}
     </div>
   {/if}
@@ -181,7 +182,7 @@
     {#each list as t (t.id)}
       <li class="list-group-item list-group-item-action px-1 py-1 small" class:active={ui.selectedTokenId === t.id}>
         <button class="btn btn-link btn-sm p-0 text-reset text-decoration-none" onclick={() => (ui.selectedTokenId = t.id)}>
-          {t.hidden ? '👻 ' : ''}{t.dm_only ? '🔒 ' : ''}{dm && t.owners?.length ? '👤 ' : ''}{t.deceased ? '💀 ' : ''}{t.name || '(unnamed)'}
+          {t.hidden ? '👻 ' : ''}{t.anyone_can_move ? '🔓 ' : ''}{dm && t.owners?.length ? '👤 ' : ''}{t.deceased ? '💀 ' : ''}{t.name || '(unnamed)'}
         </button>
       </li>
     {:else}
@@ -204,8 +205,8 @@
         <label class="form-check-label small" for="nthid">Hidden</label>
       </div>
       <div class="form-check mb-1">
-        <input class="form-check-input" type="checkbox" id="ntdm" bind:checked={nt.dm_only} />
-        <label class="form-check-label small" for="ntdm">Only DM can move</label>
+        <input class="form-check-input" type="checkbox" id="ntanyone" bind:checked={nt.anyone_can_move} />
+        <label class="form-check-label small" for="ntanyone">Anyone can move</label>
       </div>
       <button class="btn btn-sm btn-primary" disabled={busy}>Add to map</button>
     </form>

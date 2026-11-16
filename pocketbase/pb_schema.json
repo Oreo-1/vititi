@@ -360,7 +360,7 @@
     "listRule": "@request.auth.id != \"\"",
     "viewRule": "@request.auth.id != \"\"",
     "createRule": "@request.auth.role = \"dm\"",
-    "updateRule": "@request.auth.role = \"dm\" || (@request.auth.id != \"\" && hidden = false && @request.body.map:isset = false && @request.body.size:isset = false && @request.body.hidden:isset = false && @request.body.dm_only:isset = false && @request.body.deceased:isset = false && @request.body.owners:isset = false && ((@request.body.name:isset = false && @request.body.image:isset = false) || owners.id ?= @request.auth.id) && ((@request.body.x:isset = false && @request.body.y:isset = false) || (dm_only = false && (owners:length = 0 || owners.id ?= @request.auth.id))))",
+    "updateRule": "@request.auth.role = \"dm\" || (@request.auth.id != \"\" && hidden = false && @request.body.map:isset = false && @request.body.size:isset = false && @request.body.hidden:isset = false && @request.body.anyone_can_move:isset = false && @request.body.deceased:isset = false && @request.body.owners:isset = false && ((@request.body.name:isset = false && @request.body.image:isset = false) || owners.id ?= @request.auth.id) && ((@request.body.x:isset = false && @request.body.y:isset = false) || anyone_can_move = true || owners.id ?= @request.auth.id))",
     "deleteRule": "@request.auth.role = \"dm\"",
     "fields": [
       {
@@ -473,8 +473,8 @@
         "required": false
       },
       {
-        "id": "bool_dm_only",
-        "name": "dm_only",
+        "id": "bool_anyone_can_move",
+        "name": "anyone_can_move",
         "type": "bool",
         "system": false,
         "hidden": false,
