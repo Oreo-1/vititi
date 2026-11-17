@@ -1,8 +1,8 @@
 # syntax=docker/dockerfile:1
-FROM alpine:3.24.3
+FROM alpine:3.24.4
 
 # PocketBase release to download (check https://pocketbase.io for the latest version).
-ARG PB_VERSION=0.41.1
+ARG PB_VERSION=0.42.3
 ARG PB_DOWNLOAD_BASE=https://ganigeorgiev.com/meta/pocketbase/pocketbase/download
 
 # Set automatically by BuildKit (amd64 / arm64 / arm).
