@@ -1,5 +1,6 @@
 <script>
   // The interactive viewport: camera, layers, and all pointer tools.
+  import { untrack } from 'svelte';
   import {
     game, currentMap, fogOf, addFogOp, canMoveToken, canEditDrawing, canDeleteDrawing,
     beginDrag, endDrag, moveTokenLocal, queueTokenUpdate,
@@ -7,7 +8,7 @@
     createDrawing, deleteDrawing, createToken, deleteToken,
   } from '../lib/game.svelte.js';
   import { isDM } from '../lib/auth.svelte.js';
-  import { ui } from '../lib/ui.svelte.js';
+  import { ui, selectOnly, clearSelection, toggleSelected, isSelected, isAdditive } from '../lib/ui.svelte.js';
   import { fileUrl } from '../lib/pb.js';
   import * as G from '../lib/geometry.js';
   import Grid from './Grid.svelte';
@@ -30,10 +31,33 @@
   let H = $derived(map?.height || 1000);
   // Hidden tokens are simply not rendered for players (equivalent to display:none).
   let visibleTokens = $derived(game.tokens.filter((t) => dm || !t.hidden));
-  let selectedDrawing = $derived(game.drawings.find((d) => d.id === ui.selectedDrawingId));
+
+  // Stacking: SVG paints later elements on top, so tokens are drawn in the order they were last
+  // selected on their own, the latest last. Selecting a single token brings it to the front, and
+  // it stays there after it's deselected, until another one is selected. Selecting several
+  // (box, Shift+click) changes nothing, and neither does Shift+clicking a group down to one token.
+  // Tokens never selected keep their usual order underneath. Local to this browser.
+  let raised = $state([]);
+  let prevSel = []; // selection last time, to tell a fresh pick from what's left of a group
+  $effect(() => {
+    const sel = [...ui.selection.tokens];
+    const fresh = sel.length === 1 && !prevSel.includes(sel[0]);
+    prevSel = sel;
+    if (fresh) untrack(() => { raised = [...raised.filter((id) => id !== sel[0]), sel[0]]; });
+  });
+  let stackedTokens = $derived.by(() => {
+    const rank = new Map(raised.map((id, i) => [id, i]));
+    return [...visibleTokens].sort((a, b) => (rank.get(a.id) ?? -1) - (rank.get(b.id) ?? -1));
+  });
+  // resize/rotate handles only when that one drawing is all that's selected
+  let selectedDrawing = $derived(
+    ui.selection.drawings.length === 1 && !ui.selection.tokens.length
+      ? game.drawings.find((d) => d.id === ui.selection.drawings[0])
+      : null
+  );
 
   let action = null; // current drag interaction (non-reactive)
-  let preview = $state(null); // in-progress shape {kind, shape?, x1, y1, x2, y2}
+  let preview = $state(null); // in-progress shape {kind, shape?, x1, y1, x2, y2}; kind 'marquee' = selection box
   let spaceDown = $state(false);
   let panning = $state(false);
 
@@ -42,6 +66,7 @@
   $effect(() => {
     if (map && cw && ch && fittedFor !== map.id) {
       fittedFor = map.id;
+      clearSelection(); // ids from the previous map
       fit();
     }
   });
@@ -83,18 +108,21 @@
     if (!map) return;
     el.setPointerCapture(e.pointerId);
     const p = toWorld(e);
-    const leftSelect = e.button === 0 && ui.tool === 'select';
-
-    if (e.button === 1 || e.button === 2 || spaceDown || leftSelect) {
-      if (leftSelect && !spaceDown) {
-        ui.selectedTokenId = '';
-        ui.selectedDrawingId = '';
-      }
+    if (e.button === 1 || e.button === 2 || spaceDown) {
       action = { kind: 'pan', sx: e.clientX, sy: e.clientY, cx: cam.x, cy: cam.y };
       panning = true;
       return;
     }
     if (e.button !== 0) return;
+
+    // Select tool on empty space: drag a selection box. A plain click just clears the selection.
+    if (ui.tool === 'select') {
+      const additive = isAdditive(e);
+      if (!additive) clearSelection();
+      action = { kind: 'marquee', additive, sx: e.clientX, sy: e.clientY, moved: false };
+      preview = { kind: 'marquee', x1: p.x, y1: p.y, x2: p.x, y2: p.y };
+      return;
+    }
 
     let kind = ui.tool;
     if (kind.startsWith('fog')) {
@@ -107,27 +135,132 @@
     if (kind === 'aoe') preview.shape = ui.aoeShape; // fixed for this drag
   }
 
-  function onTokenDown(e, t) {
-    if (e.button !== 0 || ui.tool !== 'select' || spaceDown) return; // let it bubble (pan / tools)
+  // Pressing on a token or drawing. With Shift/Ctrl/Cmd it toggles the item in the selection.
+  // Otherwise it selects just that item, unless it's already selected: then the whole
+  // selection is dragged together.
+  function onItemDown(e, kind, item, canMove) {
+    if (e.button !== 0 || ui.tool !== 'select' || spaceDown) return false; // let it bubble (pan / tools)
     e.stopPropagation();
-    ui.selectedTokenId = t.id;
-    ui.selectedDrawingId = '';
-    if (!canMoveToken(t)) return;
-    el.setPointerCapture(e.pointerId);
-    const p = toWorld(e);
-    beginDrag(t.id);
-    action = { kind: 'token', id: t.id, dx: p.x - t.x, dy: p.y - t.y, ox: t.x, oy: t.y };
+    if (isAdditive(e)) {
+      toggleSelected(kind, item.id);
+      return false;
+    }
+    if (!isSelected(kind, item.id)) selectOnly({ [kind]: [item.id] });
+    return canMove;
+  }
+
+  function onTokenDown(e, t) {
+    if (onItemDown(e, 'tokens', t, canMoveToken(t))) startGroupMove(e, { type: 'token', id: t.id });
   }
 
   function onDrawingDown(e, d) {
-    if (e.button !== 0 || ui.tool !== 'select' || spaceDown) return;
-    e.stopPropagation();
-    ui.selectedDrawingId = d.id;
-    ui.selectedTokenId = '';
-    if (!canEditDrawing(d)) return;
+    if (onItemDown(e, 'drawings', d, canEditDrawing(d))) startGroupMove(e, { type: 'drawing', id: d.id });
+  }
+
+  // ---------- moving the selection ----------
+  // Everything selected that you may move goes along, by the same offset. With snap on, the
+  // grabbed item snaps (a token on release, a drawing while dragging) and the rest follow it.
+
+  function startGroupMove(e, grab) {
+    const tokens = visibleTokens.filter((t) => isSelected('tokens', t.id) && canMoveToken(t));
+    const drawings = game.drawings.filter((d) => isSelected('drawings', d.id) && canEditDrawing(d));
+    el.setPointerCapture(e.pointerId);
+    for (const t of tokens) beginDrag(t.id);
+    for (const d of drawings) beginDrawingDrag(d.id);
+    action = {
+      kind: 'group',
+      grab,
+      start: toWorld(e),
+      sx: e.clientX,
+      sy: e.clientY,
+      moved: false,
+      raw: { dx: 0, dy: 0 },
+      last: { dx: 0, dy: 0 },
+      tokens: tokens.map((t) => ({ id: t.id, x: t.x, y: t.y, size: Number(t.size) || 1 })),
+      drawings: drawings.map((d) => ({ id: d.id, x1: d.x1, y1: d.y1, x2: d.x2, y2: d.y2, anchor: moveAnchor(d) })),
+    };
+  }
+
+  // the offset to apply, after snapping the grabbed item
+  function groupDelta(a, final) {
+    const { dx, dy } = a.raw;
+    if (!ui.snap) return { dx, dy };
+    if (a.grab.type === 'drawing') {
+      const g = a.drawings.find((o) => o.id === a.grab.id);
+      const s = snapFor('drawing', { x: g.anchor.x + dx, y: g.anchor.y + dy });
+      return { dx: s.x - g.anchor.x, dy: s.y - g.anchor.y };
+    }
+    if (!final) return { dx, dy };
+    const g = a.tokens.find((o) => o.id === a.grab.id);
+    const s = G.snapToken(map, g.x + dx, g.y + dy, g.size);
+    return { dx: s.x - g.x, dy: s.y - g.y };
+  }
+
+  function applyGroup(a, { dx, dy }, final) {
+    for (const o of a.tokens) {
+      let x = o.x + dx, y = o.y + dy;
+      // players can't enter the fog: that token goes back to where the drag started
+      if (final && !dm && G.isFogged(map, fog, x, y)) {
+        x = o.x;
+        y = o.y;
+      }
+      moveTokenLocal(o.id, x, y);
+      queueTokenUpdate(o.id, { x, y }); // live sync while dragging
+    }
+    for (const o of a.drawings) {
+      const c = { x1: o.x1 + dx, y1: o.y1 + dy, x2: o.x2 + dx, y2: o.y2 + dy };
+      moveDrawingLocal(o.id, c);
+      queueDrawingUpdate(o.id, c);
+    }
+  }
+
+  function updateGroupMove(a, e) {
+    // ignore the tiny jitter of a plain click, so selecting never nudges or re-snaps anything
+    if (!a.moved && Math.hypot(e.clientX - a.sx, e.clientY - a.sy) < 3) return;
+    a.moved = true;
     const p = toWorld(e);
-    const anchor = moveAnchor(d);
-    startDrawingEdit(e, d, { mode: 'move', anchor, dx: p.x - anchor.x, dy: p.y - anchor.y });
+    a.raw = { dx: p.x - a.start.x, dy: p.y - a.start.y };
+    const d = groupDelta(a, false);
+    if (a.grab.type === 'token') {
+      // ruler: how far the grabbed token has moved
+      const g = a.tokens.find((o) => o.id === a.grab.id);
+      preview = { kind: 'measure', x1: g.x, y1: g.y, x2: g.x + d.dx, y2: g.y + d.dy };
+    }
+    if (d.dx === a.last.dx && d.dy === a.last.dy) return;
+    a.last = d;
+    applyGroup(a, d, false);
+  }
+
+  function endGroupMove(a) {
+    for (const o of a.tokens) endDrag(o.id);
+    for (const o of a.drawings) endDrawingDrag(o.id);
+  }
+
+  function cancelGroupMove(a) {
+    if (a.moved) applyGroup(a, { dx: 0, dy: 0 }, false);
+    endGroupMove(a);
+  }
+
+  // ---------- selection box ----------
+  // Picks what you could drag: tokens by their centre, circles by their origin, rectangles by their centre.
+  function marqueeHits(pv) {
+    const r = G.rectFromPoints(pv.x1, pv.y1, pv.x2, pv.y2);
+    const inside = (x, y) => x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
+    const point = (d) => (G.isRect(d) ? [(d.x1 + d.x2) / 2, (d.y1 + d.y2) / 2] : [d.x1, d.y1]);
+    return {
+      tokens: visibleTokens.filter((t) => canMoveToken(t) && inside(t.x, t.y)).map((t) => t.id),
+      drawings: game.drawings.filter((d) => canEditDrawing(d) && inside(...point(d))).map((d) => d.id),
+    };
+  }
+
+  function finishMarquee(a, pv) {
+    if (!a.moved) return; // a plain click: the selection was already cleared
+    const hits = marqueeHits(pv);
+    if (!a.additive) return selectOnly(hits);
+    selectOnly({
+      tokens: [...new Set([...ui.selection.tokens, ...hits.tokens])],
+      drawings: [...new Set([...ui.selection.drawings, ...hits.drawings])],
+    });
   }
 
   function onHandleDown(e, d, h) {
@@ -181,11 +314,6 @@
   function editedCoords(a, p) {
     const { x1, y1, x2, y2, rotation: rot } = a.orig;
     const min = G.ftToPx(map, 1);
-    if (a.mode === 'move') {
-      const s = snapFor('drawing', { x: p.x - a.dx, y: p.y - a.dy });
-      const dx = s.x - a.anchor.x, dy = s.y - a.anchor.y;
-      return { x1: x1 + dx, y1: y1 + dy, x2: x2 + dx, y2: y2 + dy };
-    }
     if (a.mode === 'radius') {
       const q = aoeEnd(x1, y1, p);
       return Math.hypot(q.x - x1, q.y - y1) < min ? null : { x2: q.x, y2: q.y };
@@ -239,12 +367,16 @@
       updateDrawingEdit(action, e);
       return;
     }
+    if (action.kind === 'group') {
+      updateGroupMove(action, e);
+      return;
+    }
     const p = toWorld(e);
-    if (action.kind === 'token') {
-      const x = p.x - action.dx, y = p.y - action.dy;
-      moveTokenLocal(action.id, x, y);
-      queueTokenUpdate(action.id, { x, y }); // live sync while dragging
-      preview = { kind: 'measure', x1: action.ox, y1: action.oy, x2: x, y2: y };
+    if (action.kind === 'marquee') {
+      if (!action.moved && Math.hypot(e.clientX - action.sx, e.clientY - action.sy) < 3) return;
+      action.moved = true;
+      preview.x2 = p.x;
+      preview.y2 = p.y;
       return;
     }
     if (!preview) return;
@@ -262,20 +394,13 @@
     panning = false;
     if (!a) return;
 
-    if (a.kind === 'token') {
-      const t = game.tokens.find((t) => t.id === a.id);
-      if (t) {
-        let { x, y } = t;
-        if (ui.snap) ({ x, y } = G.snapToken(map, x, y, Number(t.size) || 1));
-        // players can't enter the fog: send the token back to where the drag started
-        if (!dm && G.isFogged(map, fog, x, y)) {
-          x = a.ox;
-          y = a.oy;
-        }
-        moveTokenLocal(a.id, x, y);
-        queueTokenUpdate(a.id, { x, y });
-      }
-      endDrag(a.id);
+    if (a.kind === 'group') {
+      if (a.moved) applyGroup(a, groupDelta(a, true), true);
+      endGroupMove(a);
+      return;
+    }
+    if (a.kind === 'marquee') {
+      finishMarquee(a, pv);
       return;
     }
     if (a.kind === 'drawing') {
@@ -310,20 +435,26 @@
     } else if (e.key === 'Escape') {
       preview = null;
       if (action?.kind === 'drawing') cancelDrawingEdit(action);
-      if (action && action.kind !== 'token') action = null;
-      ui.selectedDrawingId = '';
-      ui.selectedTokenId = '';
+      if (action?.kind === 'group') cancelGroupMove(action);
+      action = null;
+      panning = false;
+      clearSelection();
     } else if (e.key === 'Delete' || e.key === 'Backspace') {
-      const d = game.drawings.find((d) => d.id === ui.selectedDrawingId);
-      if (d && canDeleteDrawing(d)) {
-        ui.selectedDrawingId = '';
-        await deleteDrawing(d.id);
-        return;
+      if (action) return; // not in the middle of a drag
+      const drawings = game.drawings.filter((d) => isSelected('drawings', d.id) && canDeleteDrawing(d));
+      const tokens = dm ? game.tokens.filter((t) => isSelected('tokens', t.id)) : [];
+      if (!drawings.length && !tokens.length) return;
+      // areas go without asking, as before; deleting tokens is confirmed
+      if (tokens.length) {
+        const what = tokens.length === 1 ? `token "${tokens[0].name}"` : `${tokens.length} tokens`;
+        const extra = drawings.length ? ` and ${drawings.length} area${drawings.length === 1 ? '' : 's'}` : '';
+        if (!confirm(`Delete ${what}${extra}?`)) return;
       }
-      const t = game.tokens.find((t) => t.id === ui.selectedTokenId);
-      if (t && dm && confirm(`Delete token "${t.name}"?`)) {
-        ui.selectedTokenId = '';
-        await deleteToken(t.id);
+      clearSelection();
+      try {
+        await Promise.all([...drawings.map((d) => deleteDrawing(d.id)), ...tokens.map((t) => deleteToken(t.id))]);
+      } catch (err) {
+        alert('Could not delete: ' + (err?.message || err));
       }
     }
   }
@@ -348,7 +479,7 @@
   }
 
   let cursor = $derived(
-    panning ? 'grabbing' : spaceDown || ui.tool === 'select' ? 'grab' : 'crosshair'
+    panning ? 'grabbing' : spaceDown ? 'grab' : ui.tool === 'select' ? 'default' : 'crosshair'
   );
 </script>
 
@@ -395,19 +526,19 @@
             {d}
             {map}
             zoom={cam.zoom}
-            selected={ui.selectedDrawingId === d.id}
+            selected={isSelected('drawings', d.id)}
             movable={ui.tool === 'select' && canEditDrawing(d)}
             onpointerdown={(e) => onDrawingDown(e, d)}
           />
         {/each}
 
         <!-- 4. tokens -->
-        {#each visibleTokens as t (t.id)}
+        {#each stackedTokens as t (t.id)}
           <Token
             {t}
             {map}
             zoom={cam.zoom}
-            selected={ui.selectedTokenId === t.id}
+            selected={isSelected('tokens', t.id)}
             movable={canMoveToken(t)}
             onpointerdown={(e) => onTokenDown(e, t)}
           />
@@ -426,7 +557,7 @@
               d={selectedDrawing}
               zoom={cam.zoom}
               onhandledown={(e, h) => onHandleDown(e, selectedDrawing, h)}
-              ondelete={() => { const id = selectedDrawing.id; ui.selectedDrawingId = ''; deleteDrawing(id); }}
+              ondelete={() => { const id = selectedDrawing.id; clearSelection(); deleteDrawing(id); }}
             />
           {/key}
         {/if}
@@ -440,12 +571,15 @@
           {:else if preview.kind === 'fog'}
             {@const r = G.rectFromPoints(preview.x1, preview.y1, preview.x2, preview.y2)}
             <rect x={r.x} y={r.y} width={r.w} height={r.h} fill="none" stroke={ui.tool === 'fog-hide' ? 'black' : 'white'} stroke-width={2 / cam.zoom} stroke-dasharray="{6 / cam.zoom} {4 / cam.zoom}" pointer-events="none" />
+          {:else if preview.kind === 'marquee'}
+            {@const r = G.rectFromPoints(preview.x1, preview.y1, preview.x2, preview.y2)}
+            <rect class="vtt-marquee" x={r.x} y={r.y} width={r.w} height={r.h} fill="rgba(255,255,255,0.15)" stroke="white" stroke-width={1 / cam.zoom} pointer-events="none" />
           {/if}
         {/if}
       </g>
     </svg>
     <div class="position-absolute bottom-0 end-0 p-1 small text-white-50 text-end" style="pointer-events:none">
-      Zoom {Math.round(cam.zoom * 100)}% · wheel = zoom · right/middle drag or Space+drag = pan
+      Zoom {Math.round(cam.zoom * 100)}% · wheel = zoom · right/middle drag or Space+drag = pan · Shift+click/drag = add to selection
     </div>
     <button class="btn btn-sm btn-light position-absolute top-0 start-0 m-2" onpointerdown={(e) => e.stopPropagation()} onclick={fit}>Fit map</button>
     <InitiativeTracker />

@@ -4,7 +4,7 @@
   import { flip } from 'svelte/animate';
   import { isDM } from '../lib/auth.svelte.js';
   import { game, initiativeOrder, nextTurn, moveInitiative, removeFromInitiative, addToInitiative, clearInitiative, sortByName } from '../lib/game.svelte.js';
-  import { ui } from '../lib/ui.svelte.js';
+  import { ui, selectOnly } from '../lib/ui.svelte.js';
   import { fileUrl } from '../lib/pb.js';
 
   let dm = $derived(isDM());
@@ -74,8 +74,7 @@
   function select(entry) {
     if (performance.now() - dragEndedAt < 300) return; // the click that ends a drag
     if (!entry.t) return;
-    ui.selectedTokenId = entry.t.id;
-    ui.selectedDrawingId = '';
+    selectOnly({ tokens: [entry.t.id] });
   }
 
   function report(err) {

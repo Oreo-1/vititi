@@ -1,7 +1,7 @@
 <script>
   import { auth, isDM } from '../lib/auth.svelte.js';
   import { game, canEditDrawing, canDeleteDrawing, updateDrawing, deleteDrawing, clearDrawings, currentMap } from '../lib/game.svelte.js';
-  import { ui } from '../lib/ui.svelte.js';
+  import { ui, isSelected, pick } from '../lib/ui.svelte.js';
   import { pxToFt, isRect, rotationOf, rectSides } from '../lib/geometry.js';
 
   let map = $derived(currentMap());
@@ -59,14 +59,14 @@
     <h2 class="h6">Areas of effect</h2>
     <ul class="list-group list-group-flush mb-2">
       {#each game.drawings as d (d.id)}
-        <li class="list-group-item px-1 py-1 small d-flex align-items-center gap-1" class:active={ui.selectedDrawingId === d.id}>
+        <li class="list-group-item px-1 py-1 small d-flex align-items-center gap-1" class:active={isSelected('drawings', d.id)}>
           <span class="flex-shrink-0" style="display:inline-block;width:12px;height:12px;background:{d.color}"></span>
           {#if renamingId === d.id}
             <input class="form-control form-control-sm w-auto flex-grow-1" style="min-width:0" aria-label="Area name" maxlength="50" placeholder={describe(d)}
               bind:value={newName} use:focusAndSelect onkeydown={onRenameKey} onblur={commitRename} />
           {:else}
             <button class="btn btn-link btn-sm p-0 text-reset text-decoration-none flex-grow-1 text-start text-truncate" style="min-width:0" title={label(d)}
-              onclick={() => { ui.tool = 'select'; ui.selectedDrawingId = d.id; }}>{label(d)}</button>
+              onclick={(e) => { ui.tool = 'select'; pick('drawings', d.id, e); }}>{label(d)}</button>
             {#if canEditDrawing(d)}
               <button class="btn btn-sm p-0 border-0" title="Rename" aria-label="Rename {label(d)}" onclick={() => startRename(d)}>✏️</button>
             {/if}
